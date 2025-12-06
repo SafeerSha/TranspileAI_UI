@@ -1,5 +1,7 @@
 import * as signalR from '@microsoft/signalr';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+
 interface ProcessProjectParams {
   githubUrl?: string;
   mode: 'conversion' | 'generate';
@@ -29,7 +31,7 @@ class ProjectService {
     this.progressCallback = onProgress;
 
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl('/progressHub')
+      .withUrl(`${BACKEND_URL}/progressHub`)
       .withAutomaticReconnect()
       .build();
 
@@ -46,7 +48,7 @@ class ProjectService {
 
   // Process API - Main endpoint for cloning, conversion, generation
   async processProject({ githubUrl, mode, type, targetFramework }: ProcessProjectParams): Promise<any> {
-    const response = await fetch('/api/project/process', {
+    const response = await fetch(`${BACKEND_URL}/api/project/process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -69,7 +71,7 @@ class ProjectService {
 
   // Create base project
   async createBaseProject(domain: string): Promise<any> {
-    const response = await fetch('/api/project/createBase', {
+    const response = await fetch(`${BACKEND_URL}/api/project/createBase`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +91,7 @@ class ProjectService {
 
   // Convert project
   async convertProject({ id, fromDomain, targetDomain, baseProjectId }: ConvertProjectParams): Promise<any> {
-    const response = await fetch('/api/project/convert', {
+    const response = await fetch(`${BACKEND_URL}/api/project/convert`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -112,7 +114,7 @@ class ProjectService {
 
   // Generate backend
   async generateBackend({ id, targetDomain }: GenerateBackendParams): Promise<any> {
-    const response = await fetch('/api/project/generate', {
+    const response = await fetch(`${BACKEND_URL}/api/project/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,7 +135,7 @@ class ProjectService {
 
   // Download project
   async downloadProject(id: string): Promise<Blob> {
-    const response = await fetch(`/api/project/download/${id}`);
+    const response = await fetch(`${BACKEND_URL}/api/project/download/${id}`);
 
     if (!response.ok) {
       throw new Error(`Download failed: ${response.statusText}`);
