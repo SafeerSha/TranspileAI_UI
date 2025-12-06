@@ -1,6 +1,6 @@
 import * as signalR from '@microsoft/signalr';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BASE_URL;
 
 interface ProcessProjectParams {
   githubUrl?: string;
