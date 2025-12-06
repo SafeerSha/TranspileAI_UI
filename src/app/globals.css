@@ -27,21 +27,27 @@ body {
 
 @keyframes float {
   0% {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  10% {
+    transform: translateX(0%) translateY(0%);
     opacity: 1;
   }
-  90% {
+  25% {
+    transform: translateX(25%) translateY(-20px);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(50%) translateY(0%);
+    opacity: 1;
+  }
+  75% {
+    transform: translateX(75%) translateY(-10px);
     opacity: 1;
   }
   100% {
-    transform: translateX(100%);
+    transform: translateX(100%) translateY(0%);
     opacity: 0;
   }
 }
 
 .animate-float {
-  animation: float linear infinite;
+  animation: float ease-in-out infinite;
 }

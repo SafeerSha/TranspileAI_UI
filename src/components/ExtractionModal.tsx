@@ -21,11 +21,11 @@ export default function ExtractionModal({ isOpen, onClose }: ExtractionModalProp
 
             {/* Floating Files */}
             <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute top-4 text-2xl animate-float" style={{ animationDelay: '0s', animationDuration: '3s' }}>📄</div>
-              <div className="absolute top-8 text-2xl animate-float" style={{ animationDelay: '1s', animationDuration: '3s' }}>📄</div>
-              <div className="absolute top-12 text-2xl animate-float" style={{ animationDelay: '2s', animationDuration: '3s' }}>📄</div>
-              <div className="absolute top-16 text-2xl animate-float" style={{ animationDelay: '0.5s', animationDuration: '3s' }}>📄</div>
-              <div className="absolute top-20 text-2xl animate-float" style={{ animationDelay: '1.5s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute left-0 top-4 text-2xl animate-float" style={{ animationDelay: '0s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute left-0 top-8 text-2xl animate-float" style={{ animationDelay: '1s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute left-0 top-12 text-2xl animate-float" style={{ animationDelay: '2s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute left-0 top-16 text-2xl animate-float" style={{ animationDelay: '0.5s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute left-0 top-20 text-2xl animate-float" style={{ animationDelay: '1.5s', animationDuration: '3s' }}>📄</div>
             </div>
           </div>
 
