@@ -21,6 +21,23 @@ interface GenerateBackendParams {
   targetDomain: string;
 }
 
+interface CreateBaseResponse {
+  id: string;
+  folders: string[];
+  taskId: string;
+}
+
+interface ProcessProjectResponse {
+  id: string;
+  folders: string[];
+  taskId: string;
+}
+
+interface ProgressData {
+  percentage: number;
+  message: string;
+}
+
 class ProjectService {
   private connection: signalR.HubConnection | null = null;
   private connectionId: string | null = null;
@@ -47,7 +64,7 @@ class ProjectService {
   }
 
   // Process API - Main endpoint for cloning, conversion, generation
-  async processProject({ githubUrl, mode, type, targetFramework }: ProcessProjectParams): Promise<any> {
+  async processProject({ githubUrl, mode, type, targetFramework }: ProcessProjectParams): Promise<ProcessProjectResponse> {
     const response = await fetch(`${BACKEND_URL}/api/project/process`, {
       method: 'POST',
       headers: {
@@ -70,7 +87,7 @@ class ProjectService {
   }
 
   // Create base project
-  async createBaseProject(domain: string): Promise<any> {
+  async createBaseProject(domain: string): Promise<CreateBaseResponse> {
     const response = await fetch(`${BACKEND_URL}/api/project/createBase`, {
       method: 'POST',
       headers: {
@@ -87,6 +104,42 @@ class ProjectService {
     }
 
     return await response.json();
+  }
+
+  // Poll for progress updates
+  async pollProgress(taskId: string, onProgress?: (progress: ProgressData) => void): Promise<ProgressData | null> {
+    return new Promise((resolve) => {
+      const poll = async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/project/progress/${taskId}`);
+
+          if (response.ok) {
+            const progress: ProgressData = await response.json();
+            console.log(`Progress: ${progress.percentage}% - ${progress.message}`);
+
+            if (onProgress) {
+              onProgress(progress);
+            }
+
+            if (progress.percentage >= 100) {
+              resolve(progress);
+            } else {
+              setTimeout(poll, 1000); // Poll every second
+            }
+          } else if (response.status === 404) {
+            console.log('Progress not found, operation might be complete');
+            resolve(null);
+          } else {
+            throw new Error('Failed to get progress');
+          }
+        } catch (error) {
+          console.error('Error polling progress:', error);
+          setTimeout(poll, 2000); // Retry after 2 seconds on error
+        }
+      };
+
+      poll();
+    });
   }
 
   // Convert project

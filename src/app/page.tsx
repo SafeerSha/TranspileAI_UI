@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import ProjectService from '../services/projectService';
+import ProgressModal from '../components/ProgressModal';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -14,6 +15,7 @@ export default function Home() {
   const [showBackendDropdown, setShowBackendDropdown] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState<{message: string, percentage: number} | null>(null);
+  const [showModal, setShowModal] = useState(false);
   const [projectService] = useState(() => new ProjectService());
 
   const frontendFrameworks = ['React', 'Vue', 'Angular', 'Svelte', 'Ember', 'Preact', 'Lit', 'SolidJS'];
@@ -38,6 +40,12 @@ export default function Home() {
     initProgress();
   }, [projectService]);
 
+  useEffect(() => {
+    if (progress && progress.percentage >= 100) {
+      setShowModal(false);
+    }
+  }, [progress]);
+
   const handleGo = async () => {
     const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
     if (mode === 'conversion' && !githubUrlRegex.test(inputText.trim())) {
@@ -50,6 +58,7 @@ export default function Home() {
     }
     setError('');
     setProgress(null); // Reset progress
+    setShowModal(true); // Show progress modal
     try {
       const params = {
         githubUrl: mode === 'conversion' ? inputText : undefined,
@@ -63,6 +72,7 @@ export default function Home() {
     } catch (err) {
       setError('Failed to process request. Please try again.');
       console.error('API error:', err);
+      setShowModal(false); // Hide modal on error
     }
   };
 
@@ -236,20 +246,6 @@ export default function Home() {
             </>
           )}
 
-          {/* Progress Display */}
-          {progress && (
-            <div className="mb-6">
-              <p className="text-white text-lg mb-2">{progress.message}</p>
-              <div className="w-full bg-white/20 rounded-full h-4">
-                <div
-                  className="bg-purple-600 h-4 rounded-full transition-all duration-300"
-                  style={{ width: `${progress.percentage}%` }}
-                ></div>
-              </div>
-              <p className="text-white text-sm mt-1">{progress.percentage}% complete</p>
-            </div>
-          )}
-
           {/* Go Button */}
           <button
             onClick={handleGo}
@@ -259,6 +255,12 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      <ProgressModal
+        isOpen={showModal}
+        progress={progress}
+        onClose={() => setShowModal(false)}
+      />
     </div>
   );
 }
