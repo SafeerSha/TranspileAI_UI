@@ -30,12 +30,12 @@ export default function ProgressModal({ isOpen, progress, onClose }: ProgressMod
             <>
               <p className="text-white text-lg mb-6">{progress.message}</p>
 
-              <div className="w-full bg-white/20 rounded-full h-6 mb-4 overflow-hidden">
+              <div className="w-full bg-white/20 rounded-full h-8 mb-4 overflow-hidden relative">
                 <div
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-6 rounded-full transition-all duration-500 ease-out relative"
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-8 rounded-full transition-all duration-300 ease-out flex items-center justify-center text-white font-semibold text-sm"
                   style={{ width: `${progress.percentage}%` }}
                 >
-                  <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  {progress.percentage > 10 && `${progress.percentage}%`}
                 </div>
               </div>
 
