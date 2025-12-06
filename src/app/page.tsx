@@ -98,7 +98,7 @@ export default function Home() {
       return;
     }
     setError('');
-    setProgress(null); // Reset progress
+    setProgress({ message: 'Starting process...', percentage: 0 }); // Reset progress
     setShowModal(true); // Show progress modal
     try {
       const params = {
