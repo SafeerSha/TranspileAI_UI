@@ -24,8 +24,18 @@ export default function Home() {
   const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
   const [projectService] = useState(() => new ProjectService());
 
-  const [frontendFrameworks, setFrontendFrameworks] = useState<string[]>([]);
-  const [backendFrameworks, setBackendFrameworks] = useState<string[]>([]);
+  const [frontendFrameworks, setFrontendFrameworks] = useState<string[]>([
+    'React', 'Angular', 'Vue.js', 'Svelte', 'SolidJS', 'Ember.js', 'Backbone.js', 'Preact', 'Alpine.js', 'Lit',
+    'Next.js', 'Gatsby', 'Remix', 'Nuxt.js', 'SvelteKit', 'SolidStart', 'Qwik', 'Astro', 'React Native', 'Ionic',
+    'NativeScript', 'Expo', 'Flutter', 'Capacitor', 'Framework7', 'Stencil', 'HyperHTML', 'Tailwind CSS', 'Bootstrap',
+    'Material UI', 'Ant Design', 'Bulma', 'Foundation', 'Semantic UI', 'Chakra UI', 'DaisyUI', 'Flowbite', 'Redux',
+    'Zustand', 'MobX', 'Pinia', 'Vuex', 'Recoil', 'Jotai', 'TanStack Query', 'React Router', 'Marko', 'Fresh',
+    'Million.js', 'Melt UI', 'jQuery', 'Knockout.js', 'Dojo', 'MooTools', 'ExtJS'
+  ]);
+  const [backendFrameworks, setBackendFrameworks] = useState<string[]>([
+    'Express', 'Koa', 'Fastify', 'Django', 'Flask', 'FastAPI', 'Spring Boot', 'Laravel', 'Symfony', 'Rails',
+    'Gin', 'Echo', 'Actix', 'Rocket', '.NET Core', 'Micronaut'
+  ]);
 
   useEffect(() => {
     setSelectedFramework('');
@@ -35,37 +45,6 @@ export default function Home() {
     setSearchFrom('');
   }, [mode, generateType]);
 
-  useEffect(() => {
-    const fetchFrontendFrameworks = async () => {
-      try {
-        const response = await fetch('https://api.npms.io/v2/search?q=keywords:frontend-framework&size=20');
-        const data = await response.json();
-        const frameworks = data.results.map((result: any) => result.package.name);
-        setFrontendFrameworks(frameworks);
-      } catch (error) {
-        console.error('Failed to fetch frontend frameworks:', error);
-        // Fallback to hardcoded
-        setFrontendFrameworks(['React', 'Vue', 'Angular', 'Svelte', 'Ember', 'Preact', 'Lit', 'SolidJS', 'Next.js']);
-      }
-    };
-    fetchFrontendFrameworks();
-  }, []);
-
-  useEffect(() => {
-    const fetchBackendFrameworks = async () => {
-      try {
-        const response = await fetch('https://api.npms.io/v2/search?q=keywords:backend-framework&size=20');
-        const data = await response.json();
-        const frameworks = data.results.map((result: any) => result.package.name);
-        setBackendFrameworks(frameworks);
-      } catch (error) {
-        console.error('Failed to fetch backend frameworks:', error);
-        // Fallback to hardcoded
-        setBackendFrameworks(['express', 'koa', 'fastify', 'django', 'flask', 'spring-boot', 'laravel', 'gin', 'actix-web', 'rocket']);
-      }
-    };
-    fetchBackendFrameworks();
-  }, []);
 
   useEffect(() => {
     const initProgress = async () => {
