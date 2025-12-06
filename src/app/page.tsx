@@ -201,7 +201,7 @@ export default function Home() {
                 onClick={handleExtract}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                <div className='flex flex-column'>
+                <div className='flex flex-col'>
                 <label>Extract</label>
                 <label>(optional)</label>
                 </div>
