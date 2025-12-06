@@ -1,10 +1,52 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 interface DownloadModalProps {
   isOpen: boolean;
   projectData: { projectId: string; folders: string[]; taskId: string } | null;
   onDownload: () => void;
   onClose: () => void;
+}
+
+interface FolderNode {
+  name: string;
+  children: FolderNode[];
+}
+
+function buildFolderTree(paths: string[]): FolderNode[] {
+  const root: FolderNode[] = [];
+  const map = new Map<string, FolderNode>();
+
+  // Sort paths to ensure parents come before children
+  const sortedPaths = paths.sort();
+
+  sortedPaths.forEach(path => {
+    const parts = path.split('/');
+    let currentPath = '';
+    let parent: FolderNode[] = root;
+
+    parts.forEach((part, index) => {
+      currentPath += (currentPath ? '/' : '') + part;
+      let node = map.get(currentPath);
+      if (!node) {
+        node = { name: part, children: [] };
+        map.set(currentPath, node);
+        parent.push(node);
+      }
+      parent = node.children;
+    });
+  });
+
+  return root;
+}
+
+function renderFolderTree(nodes: FolderNode[], level: number = 0): React.ReactElement[] {
+  return nodes.flatMap(node => [
+    <div key={node.name + level} className="flex items-center text-white/80" style={{ paddingLeft: `${level * 20}px` }}>
+      <span className="mr-2">📂</span>
+      <span>{node.name}</span>
+    </div>,
+    ...renderFolderTree(node.children, level + 1)
+  ]);
 }
 
 export default function DownloadModal({ isOpen, projectData, onDownload, onClose }: DownloadModalProps) {
@@ -34,13 +76,8 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onClose
 
           <div className="bg-white/10 rounded-xl p-4 mb-6">
             <h4 className="text-white font-semibold mb-3">Project Structure:</h4>
-            <div className="space-y-2">
-              {projectData.folders.map((folder, index) => (
-                <div key={index} className="flex items-center text-white/80">
-                  <span className="mr-2">📂</span>
-                  <span>{folder}</span>
-                </div>
-              ))}
+            <div className="space-y-1">
+              {renderFolderTree(buildFolderTree(projectData.folders))}
             </div>
           </div>
 
