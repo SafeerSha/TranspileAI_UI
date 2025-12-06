@@ -5,6 +5,7 @@ import ProjectService from '../services/projectService';
 import ProgressModal from '../components/ProgressModal';
 import DownloadModal from '../components/DownloadModal';
 import StructureModal from '../components/StructureModal';
+import ExtractionModal from '../components/ExtractionModal';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -23,6 +24,7 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showStructureModal, setShowStructureModal] = useState(false);
+  const [showExtractionModal, setShowExtractionModal] = useState(false);
   const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
   const [extractedStructure, setExtractedStructure] = useState<any>(null);
   const [projectService] = useState(() => new ProjectService());
@@ -74,14 +76,24 @@ export default function Home() {
       return;
     }
     setError('');
-    try {
-      const data = await projectService.extractProjectStructure(inputText.trim());
-      setExtractedStructure(data.structure);
-      setShowStructureModal(true);
-    } catch (err) {
-      setError('Failed to extract project structure. Please try again.');
-      console.error('Extract error:', err);
-    }
+    setShowExtractionModal(true);
+
+    // Start extraction in background
+    const extractPromise = projectService.extractProjectStructure(inputText.trim());
+
+    // Show animation for 10 seconds
+    setTimeout(async () => {
+      try {
+        const data = await extractPromise;
+        setExtractedStructure(data.structure);
+        setShowExtractionModal(false);
+        setShowStructureModal(true);
+      } catch (err) {
+        setError('Failed to extract project structure. Please try again.');
+        console.error('Extract error:', err);
+        setShowExtractionModal(false);
+      }
+    }, 10000); // 10 seconds
   };
 
   const handleDownload = async () => {
@@ -386,6 +398,11 @@ export default function Home() {
         isOpen={showStructureModal}
         structure={extractedStructure}
         onClose={() => setShowStructureModal(false)}
+      />
+
+      <ExtractionModal
+        isOpen={showExtractionModal}
+        onClose={() => setShowExtractionModal(false)}
       />
     </div>
   );
