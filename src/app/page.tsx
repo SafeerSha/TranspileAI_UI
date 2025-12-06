@@ -67,8 +67,16 @@ export default function Home() {
         targetFramework: selectedFramework.toLowerCase(),
       };
       const data = await projectService.processProject(params);
-      console.log('Process completed:', data);
-      // Handle success, e.g., navigate to result page or show message
+      console.log('Process started:', data);
+
+      // Poll for progress updates
+      await projectService.pollProgress(data.taskId, (progressData) => {
+        setProgress({ message: progressData.message, percentage: progressData.percentage });
+      });
+
+      // After polling completes, handle success
+      console.log('Process completed successfully');
+      // You can add navigation or further actions here
     } catch (err) {
       setError('Failed to process request. Please try again.');
       console.error('API error:', err);
