@@ -201,7 +201,10 @@ export default function Home() {
                 onClick={handleExtract}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                Extract Structure
+                <div className='flex flex-column'>
+                <label>Extract</label>
+                <label>(optional)</label>
+                </div>
               </button>
             </div>
             {error && <p className="text-red-300 text-sm mt-2">{error}</p>}
