@@ -188,6 +188,23 @@ class ProjectService {
     return await response.json();
   }
 
+  // Extract project structure
+  async extractProjectStructure(url: string): Promise<any> {
+    const response = await fetch(`${BACKEND_URL}/api/project/extract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Extract failed: ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
   // Download project
   async downloadProject(id: string): Promise<Blob> {
     const response = await fetch(`${BACKEND_URL}/api/project/download/${id}`);

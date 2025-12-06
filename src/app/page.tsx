@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ProjectService from '../services/projectService';
 import ProgressModal from '../components/ProgressModal';
 import DownloadModal from '../components/DownloadModal';
+import StructureModal from '../components/StructureModal';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -21,7 +22,9 @@ export default function Home() {
   const [progress, setProgress] = useState<{message: string, percentage: number} | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [showStructureModal, setShowStructureModal] = useState(false);
   const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
+  const [extractedStructure, setExtractedStructure] = useState<any>(null);
   const [projectService] = useState(() => new ProjectService());
 
   const [frontendFrameworks, setFrontendFrameworks] = useState<string[]>([
@@ -64,6 +67,22 @@ export default function Home() {
       setShowModal(false);
     }
   }, [progress]);
+
+  const handleExtract = async () => {
+    if (!inputText.trim()) {
+      setError('Please enter a GitHub URL first');
+      return;
+    }
+    setError('');
+    try {
+      const data = await projectService.extractProjectStructure(inputText.trim());
+      setExtractedStructure(data.structure);
+      setShowStructureModal(true);
+    } catch (err) {
+      setError('Failed to extract project structure. Please try again.');
+      console.error('Extract error:', err);
+    }
+  };
 
   const handleDownload = async () => {
     if (!projectData) return;
@@ -158,13 +177,21 @@ export default function Home() {
           {/* Input GitHub URL */}
           <div className="mb-6">
             <label className="block text-white text-lg mb-2">GitHub Repository URL</label>
-            <input
-              type="url"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="https://github.com/username/repo"
-              className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
-            />
+            <div className="flex gap-3">
+              <input
+                type="url"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="https://github.com/username/repo"
+                className="flex-1 px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
+              />
+              <button
+                onClick={handleExtract}
+                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                Extract Structure
+              </button>
+            </div>
             {error && <p className="text-red-300 text-sm mt-2">{error}</p>}
           </div>
 
@@ -353,6 +380,12 @@ export default function Home() {
         projectData={projectData}
         onDownload={handleDownload}
         onClose={() => setShowDownloadModal(false)}
+      />
+
+      <StructureModal
+        isOpen={showStructureModal}
+        structure={extractedStructure}
+        onClose={() => setShowStructureModal(false)}
       />
     </div>
   );
