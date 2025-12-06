@@ -37,7 +37,7 @@ export default function StructureModal({ isOpen, structure, onClose }: Structure
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-2xl w-full mx-4 border border-white/20 max-h-[80vh] overflow-y-auto">
+      <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl max-w-2xl w-full mx-4 border border-white/10 max-h-[80vh] overflow-y-auto">
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-2xl">📁</span>

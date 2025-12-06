@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import ProjectService from '../services/projectService';
 import ProgressModal from '../components/ProgressModal';
 import DownloadModal from '../components/DownloadModal';
@@ -19,7 +20,6 @@ export default function Home() {
   const [showFrontendDropdown, setShowFrontendDropdown] = useState(false);
   const [showBackendDropdown, setShowBackendDropdown] = useState(false);
   const [showFromDropdown, setShowFromDropdown] = useState(false);
-  const [error, setError] = useState('');
   const [progress, setProgress] = useState<{message: string, percentage: number} | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
@@ -72,10 +72,9 @@ export default function Home() {
 
   const handleExtract = async () => {
     if (!inputText.trim()) {
-      setError('Please enter a GitHub URL first');
+      toast.error('Please enter a GitHub URL first');
       return;
     }
-    setError('');
     setShowExtractionModal(true);
 
     // Start extraction in background
@@ -89,7 +88,7 @@ export default function Home() {
         setShowExtractionModal(false);
         setShowStructureModal(true);
       } catch (err) {
-        setError('Failed to extract project structure. Please try again.');
+        toast.error('Failed to extract project structure. Please try again.');
         console.error('Extract error:', err);
         setShowExtractionModal(false);
       }
@@ -117,18 +116,17 @@ export default function Home() {
   const handleGo = async () => {
     const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
     if (mode === 'conversion' && !githubUrlRegex.test(inputText.trim())) {
-      setError('Please enter a valid GitHub URL (e.g., https://github.com/username/repo)');
+      toast.error('Please enter a valid GitHub URL (e.g., https://github.com/username/repo)');
       return;
     }
     if (mode === 'conversion' && !fromFramework) {
-      setError('Please select a From Framework');
+      toast.error('Please select a From Framework');
       return;
     }
     if (!selectedFramework) {
-      setError('Please select a framework');
+      toast.error('Please select a framework');
       return;
     }
-    setError('');
     setProgress({ message: 'Starting process...', percentage: 0 }); // Reset progress
     setShowModal(true); // Show progress modal
     try {
@@ -152,7 +150,7 @@ export default function Home() {
       setShowDownloadModal(true);
       setProjectData(data);
     } catch (err) {
-      setError('Failed to process request. Please try again.');
+      toast.error('Failed to process request. Please try again.');
       console.error('API error:', err);
       setShowModal(false); // Hide modal on error
     }
@@ -207,7 +205,6 @@ export default function Home() {
                 </div>
               </button>
             </div>
-            {error && <p className="text-red-300 text-sm mt-2">{error}</p>}
           </div>
 
           {/* From Framework Selection */}
@@ -407,6 +404,8 @@ export default function Home() {
         isOpen={showExtractionModal}
         onClose={() => setShowExtractionModal(false)}
       />
+
+      <Toaster />
     </div>
   );
 }

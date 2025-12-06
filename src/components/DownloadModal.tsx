@@ -73,7 +73,7 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onClose
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-lg w-full mx-4 border border-white/20">
+      <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl max-w-lg w-full mx-4 border border-white/10">
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <span className="text-2xl">📁</span>
