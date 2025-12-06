@@ -10,34 +10,31 @@ export default function ExtractionModal({ isOpen, onClose }: ExtractionModalProp
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-lg w-full mx-4 border border-white/20">
-        <div className="text-center">
-          <div className="relative w-full h-32 mx-auto mb-6 flex items-center justify-center">
-            {/* Left Folder */}
-            <div className="absolute left-0 text-4xl animate-pulse">📁</div>
+      <div className="extraction-wrapper">
+        <div className="extraction-title">Repo Extraction in Progress</div>
 
-            {/* Right Folder */}
-            <div className="absolute right-0 text-4xl animate-pulse">📁</div>
-
-            {/* Transferring Files */}
-            <div className="absolute inset-0 overflow-hidden">
-              <div className="absolute left-0 top-4 text-2xl animate-transfer" style={{ animationDelay: '0s', animationDuration: '2s' }}>📄</div>
-              <div className="absolute left-0 top-8 text-2xl animate-transfer" style={{ animationDelay: '0.5s', animationDuration: '2s' }}>📄</div>
-              <div className="absolute left-0 top-12 text-2xl animate-transfer" style={{ animationDelay: '1s', animationDuration: '2s' }}>📄</div>
-              <div className="absolute left-0 top-16 text-2xl animate-transfer" style={{ animationDelay: '1.5s', animationDuration: '2s' }}>📄</div>
-              <div className="absolute left-0 top-20 text-2xl animate-transfer" style={{ animationDelay: '2s', animationDuration: '2s' }}>📄</div>
-            </div>
+        <div className="extraction-transfer">
+          {/* Git branch icon */}
+          <div className="extraction-git-icon">
+            <svg viewBox="0 0 24 24">
+              <circle cx="7" cy="5" r="2" />
+              <circle cx="7" cy="11" r="2" />
+              <circle cx="17" cy="9" r="2" />
+              <path d="M7 7v2m0 2v2m2-4h6a2 2 0 002-2" />
+            </svg>
           </div>
 
-          <h3 className="text-2xl font-bold text-white mb-4">Extracting Repository</h3>
-          <p className="text-white text-lg mb-6">Analyzing project structure...</p>
+          {/* Animated files */}
+          <div className="extraction-file"></div>
+          <div className="extraction-file"></div>
+          <div className="extraction-file"></div>
 
-          <div className="w-full bg-white/20 rounded-full h-2 mb-4 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+          {/* Destination folder */}
+          <div className="extraction-folder">
           </div>
-
-          <p className="text-white text-sm">This will take a few seconds</p>
         </div>
+
+        <div className="extraction-status">Extracting...</div>
       </div>
     </div>
   );
