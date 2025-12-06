@@ -10,19 +10,22 @@ export default function ExtractionModal({ isOpen, onClose }: ExtractionModalProp
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-md w-full mx-4 border border-white/20">
+      <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-lg w-full mx-4 border border-white/20">
         <div className="text-center">
-          <div className="relative w-32 h-32 mx-auto mb-6 flex items-center justify-center">
-            {/* Folder Icon */}
-            <div className="text-6xl animate-pulse">📁</div>
+          <div className="relative w-full h-32 mx-auto mb-6 flex items-center justify-center">
+            {/* Left Folder */}
+            <div className="absolute left-0 text-4xl animate-pulse">📁</div>
 
-            {/* Jumping Files */}
-            <div className="absolute inset-0">
-              <div className="absolute top-4 left-2 text-2xl animate-bounce" style={{ animationDelay: '0s', animationDuration: '1s' }}>📄</div>
-              <div className="absolute top-8 right-4 text-2xl animate-bounce" style={{ animationDelay: '0.5s', animationDuration: '1s' }}>📄</div>
-              <div className="absolute bottom-4 left-6 text-2xl animate-bounce" style={{ animationDelay: '1s', animationDuration: '1s' }}>📄</div>
-              <div className="absolute bottom-8 right-2 text-2xl animate-bounce" style={{ animationDelay: '1.5s', animationDuration: '1s' }}>📄</div>
-              <div className="absolute top-12 left-8 text-2xl animate-bounce" style={{ animationDelay: '2s', animationDuration: '1s' }}>📄</div>
+            {/* Right Folder */}
+            <div className="absolute right-0 text-4xl animate-pulse">📁</div>
+
+            {/* Floating Files */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute top-4 text-2xl animate-float" style={{ animationDelay: '0s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute top-8 text-2xl animate-float" style={{ animationDelay: '1s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute top-12 text-2xl animate-float" style={{ animationDelay: '2s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute top-16 text-2xl animate-float" style={{ animationDelay: '0.5s', animationDuration: '3s' }}>📄</div>
+              <div className="absolute top-20 text-2xl animate-float" style={{ animationDelay: '1.5s', animationDuration: '3s' }}>📄</div>
             </div>
           </div>
 
