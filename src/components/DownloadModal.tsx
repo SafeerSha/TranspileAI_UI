@@ -39,14 +39,22 @@ function buildFolderTree(paths: string[]): FolderNode[] {
   return root;
 }
 
-function renderFolderTree(nodes: FolderNode[], level: number = 0): React.ReactElement[] {
-  return nodes.flatMap(node => [
-    <div key={node.name + level} className="flex items-center text-white/80" style={{ paddingLeft: `${level * 20}px` }}>
-      <span className="mr-2">📂</span>
-      <span>{node.name}</span>
-    </div>,
-    ...renderFolderTree(node.children, level + 1)
-  ]);
+function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.ReactElement {
+  return (
+    <div className="font-mono text-white/80">
+      {nodes.map((node, index) => {
+        const isLast = index === nodes.length - 1;
+        const connector = isLast ? '└─' : '├─';
+        const nextPrefix = prefix + (isLast ? '  ' : '│ ');
+        return (
+          <div key={node.name}>
+            {prefix + connector + (node.children.length > 0 ? '📂 ' : '📄 ') + node.name}
+            {renderFolderTree(node.children, nextPrefix)}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function DownloadModal({ isOpen, projectData, onDownload, onClose }: DownloadModalProps) {
