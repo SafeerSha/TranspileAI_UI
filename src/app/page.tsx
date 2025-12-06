@@ -10,10 +10,13 @@ export default function Home() {
   const [mode, setMode] = useState<'conversion' | 'generate'>('conversion');
   const [generateType, setGenerateType] = useState<'frontend' | 'backend'>('frontend');
   const [selectedFramework, setSelectedFramework] = useState('');
+  const [fromFramework, setFromFramework] = useState('');
   const [searchFrontend, setSearchFrontend] = useState('');
   const [searchBackend, setSearchBackend] = useState('');
+  const [searchFrom, setSearchFrom] = useState('');
   const [showFrontendDropdown, setShowFrontendDropdown] = useState(false);
   const [showBackendDropdown, setShowBackendDropdown] = useState(false);
+  const [showFromDropdown, setShowFromDropdown] = useState(false);
   const [error, setError] = useState('');
   const [progress, setProgress] = useState<{message: string, percentage: number} | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -26,8 +29,10 @@ export default function Home() {
 
   useEffect(() => {
     setSelectedFramework('');
+    setFromFramework('');
     setSearchFrontend('');
     setSearchBackend('');
+    setSearchFrom('');
   }, [mode, generateType]);
 
   useEffect(() => {
@@ -73,6 +78,10 @@ export default function Home() {
       setError('Please enter a valid GitHub URL (e.g., https://github.com/username/repo)');
       return;
     }
+    if (mode === 'conversion' && !fromFramework) {
+      setError('Please select a From Framework');
+      return;
+    }
     if (!selectedFramework) {
       setError('Please select a framework');
       return;
@@ -86,6 +95,7 @@ export default function Home() {
         mode,
         type: mode === 'generate' ? generateType : undefined,
         targetFramework: selectedFramework.toLowerCase(),
+        fromFramework: mode === 'conversion' ? fromFramework.toLowerCase() : undefined,
       };
       const data = await projectService.processProject(params);
       console.log('Process started:', data);
@@ -146,6 +156,41 @@ export default function Home() {
             />
             {error && <p className="text-red-300 text-sm mt-2">{error}</p>}
           </div>
+
+          {/* From Framework Selection */}
+          {mode === 'conversion' && (
+            <div className="mb-6">
+              <label className="block text-white text-lg mb-2">From Framework</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchFrom}
+                  onChange={(e) => setSearchFrom(e.target.value)}
+                  onFocus={() => setShowFromDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowFromDropdown(false), 200)}
+                  placeholder="Search and select source framework"
+                  className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
+                />
+                {showFromDropdown && (
+                  <div className="absolute top-full left-0 right-0 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl mt-1 max-h-40 overflow-y-auto z-10">
+                    {frontendFrameworks.filter(fw => fw.toLowerCase().includes(searchFrom.toLowerCase())).map(fw => (
+                      <div
+                        key={fw}
+                        onClick={() => {
+                          setFromFramework(fw);
+                          setSearchFrom(fw);
+                          setShowFromDropdown(false);
+                        }}
+                        className="px-4 py-2 hover:bg-white/10 cursor-pointer text-white first:rounded-t-xl last:rounded-b-xl"
+                      >
+                        {fw}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Mode Selection */}
           <div className="mb-6">

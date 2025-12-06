@@ -7,6 +7,7 @@ interface ProcessProjectParams {
   mode: 'conversion' | 'generate';
   type?: 'backend' | 'frontend';
   targetFramework: string;
+  fromFramework?: string;
 }
 
 interface ConvertProjectParams {
@@ -64,7 +65,7 @@ class ProjectService {
   }
 
   // Process API - Main endpoint for cloning, conversion, generation
-  async processProject({ githubUrl, mode, type, targetFramework }: ProcessProjectParams): Promise<ProcessProjectResponse> {
+  async processProject({ githubUrl, mode, type, targetFramework, fromFramework }: ProcessProjectParams): Promise<ProcessProjectResponse> {
     const response = await fetch(`${BACKEND_URL}/api/project/process`, {
       method: 'POST',
       headers: {
@@ -75,6 +76,7 @@ class ProjectService {
         mode,
         type,
         targetFramework,
+        fromFramework,
         connectionId: this.connectionId
       })
     });
