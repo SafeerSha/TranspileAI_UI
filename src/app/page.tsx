@@ -203,7 +203,7 @@ export default function Home() {
               >
                 <div className='flex flex-col'>
                 <label>Extract</label>
-                <label>(optional)</label>
+                <label className='f-xs'>(optional)</label>
                 </div>
               </button>
             </div>
