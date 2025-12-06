@@ -24,8 +24,8 @@ export default function Home() {
   const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
   const [projectService] = useState(() => new ProjectService());
 
-  const frontendFrameworks = ['React', 'Vue', 'Angular', 'Svelte', 'Ember', 'Preact', 'Lit', 'SolidJS'];
-  const backendFrameworks = ['Node.js', 'Python', 'Ruby', 'Java', 'PHP', 'Go', 'Rust', 'C#'];
+  const [frontendFrameworks, setFrontendFrameworks] = useState<string[]>([]);
+  const [backendFrameworks, setBackendFrameworks] = useState<string[]>([]);
 
   useEffect(() => {
     setSelectedFramework('');
@@ -34,6 +34,38 @@ export default function Home() {
     setSearchBackend('');
     setSearchFrom('');
   }, [mode, generateType]);
+
+  useEffect(() => {
+    const fetchFrontendFrameworks = async () => {
+      try {
+        const response = await fetch('https://api.npms.io/v2/search?q=keywords:frontend-framework&size=20');
+        const data = await response.json();
+        const frameworks = data.results.map((result: any) => result.package.name);
+        setFrontendFrameworks(frameworks);
+      } catch (error) {
+        console.error('Failed to fetch frontend frameworks:', error);
+        // Fallback to hardcoded
+        setFrontendFrameworks(['React', 'Vue', 'Angular', 'Svelte', 'Ember', 'Preact', 'Lit', 'SolidJS', 'Next.js']);
+      }
+    };
+    fetchFrontendFrameworks();
+  }, []);
+
+  useEffect(() => {
+    const fetchBackendFrameworks = async () => {
+      try {
+        const response = await fetch('https://api.npms.io/v2/search?q=keywords:backend-framework&size=20');
+        const data = await response.json();
+        const frameworks = data.results.map((result: any) => result.package.name);
+        setBackendFrameworks(frameworks);
+      } catch (error) {
+        console.error('Failed to fetch backend frameworks:', error);
+        // Fallback to hardcoded
+        setBackendFrameworks(['express', 'koa', 'fastify', 'django', 'flask', 'spring-boot', 'laravel', 'gin', 'actix-web', 'rocket']);
+      }
+    };
+    fetchBackendFrameworks();
+  }, []);
 
   useEffect(() => {
     const initProgress = async () => {
@@ -172,7 +204,7 @@ export default function Home() {
                   className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                 />
                 {showFromDropdown && (
-                  <div className="absolute top-full left-0 right-0 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl mt-1 max-h-40 overflow-y-auto z-10">
+                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-xl mt-1 max-h-40 overflow-y-auto z-10 shadow-lg">
                     {frontendFrameworks.filter(fw => fw.toLowerCase().includes(searchFrom.toLowerCase())).map(fw => (
                       <div
                         key={fw}
@@ -181,7 +213,7 @@ export default function Home() {
                           setSearchFrom(fw);
                           setShowFromDropdown(false);
                         }}
-                        className="px-4 py-2 hover:bg-white/10 cursor-pointer text-white first:rounded-t-xl last:rounded-b-xl"
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-800 first:rounded-t-xl last:rounded-b-xl"
                       >
                         {fw}
                       </div>
@@ -226,7 +258,7 @@ export default function Home() {
                   className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                 />
                 {showFrontendDropdown && (
-                  <div className="absolute top-full left-0 right-0 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl mt-1 max-h-40 overflow-y-auto z-10">
+                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-xl mt-1 max-h-40 overflow-y-auto z-10 shadow-lg">
                     {frontendFrameworks.filter(fw => fw.toLowerCase().includes(searchFrontend.toLowerCase())).map(fw => (
                       <div
                         key={fw}
@@ -235,7 +267,7 @@ export default function Home() {
                           setSearchFrontend(fw);
                           setShowFrontendDropdown(false);
                         }}
-                        className="px-4 py-2 hover:bg-white/10 cursor-pointer text-white first:rounded-t-xl last:rounded-b-xl"
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-800 first:rounded-t-xl last:rounded-b-xl"
                       >
                         {fw}
                       </div>
@@ -300,7 +332,7 @@ export default function Home() {
                     </div>
                   )}
                   {generateType === 'backend' && showBackendDropdown && (
-                    <div className="absolute top-full left-0 right-0 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl mt-1 max-h-40 overflow-y-auto z-10">
+                    <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-xl mt-1 max-h-40 overflow-y-auto z-10 shadow-lg">
                       {backendFrameworks.filter(bw => bw.toLowerCase().includes(searchBackend.toLowerCase())).map(bw => (
                         <div
                           key={bw}
@@ -309,7 +341,7 @@ export default function Home() {
                             setSearchBackend(bw);
                             setShowBackendDropdown(false);
                           }}
-                          className="px-4 py-2 hover:bg-white/10 cursor-pointer text-white first:rounded-t-xl last:rounded-b-xl"
+                          className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-800 first:rounded-t-xl last:rounded-b-xl"
                         >
                           {bw}
                         </div>
