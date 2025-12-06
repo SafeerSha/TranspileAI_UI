@@ -48,7 +48,7 @@ function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.React
         const nextPrefix = prefix + (isLast ? '  ' : '│ ');
         return (
           <div key={node.name}>
-            {prefix + connector + (node.children.length > 0 ? '📂 ' : '📄 ') + node.name}
+            {prefix + connector + '📂 ' + node.name}
             {renderFolderTree(node.children, nextPrefix)}
           </div>
         );
