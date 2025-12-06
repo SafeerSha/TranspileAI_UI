@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ProjectService from '../services/projectService';
 import ProgressModal from '../components/ProgressModal';
+import DownloadModal from '../components/DownloadModal';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -16,6 +17,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [progress, setProgress] = useState<{message: string, percentage: number} | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
   const [projectService] = useState(() => new ProjectService());
 
   const frontendFrameworks = ['React', 'Vue', 'Angular', 'Svelte', 'Ember', 'Preact', 'Lit', 'SolidJS'];
@@ -46,6 +49,24 @@ export default function Home() {
     }
   }, [progress]);
 
+  const handleDownload = async () => {
+    if (!projectData) return;
+    const blob = await projectService.downloadProject(projectData.projectId);
+
+    // Create download link and trigger download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `project-${projectData.projectId}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    // Close the download modal after download
+    setShowDownloadModal(false);
+  };
+
   const handleGo = async () => {
     const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
     if (mode === 'conversion' && !githubUrlRegex.test(inputText.trim())) {
@@ -74,21 +95,10 @@ export default function Home() {
         setProgress({ message: progressData.message, percentage: progressData.percentage });
       });
 
-      // After polling completes, download the project
-      console.log('Process completed successfully, downloading project...');
-      const blob = await projectService.downloadProject(data.projectId);
-
-      // Create download link and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `project-${data.projectId}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      console.log('Download initiated');
+      // After polling completes, show download modal
+      console.log('Process completed successfully');
+      setShowDownloadModal(true);
+      setProjectData(data);
     } catch (err) {
       setError('Failed to process request. Please try again.');
       console.error('API error:', err);
@@ -280,6 +290,13 @@ export default function Home() {
         isOpen={showModal}
         progress={progress}
         onClose={() => setShowModal(false)}
+      />
+
+      <DownloadModal
+        isOpen={showDownloadModal}
+        projectData={projectData}
+        onDownload={handleDownload}
+        onClose={() => setShowDownloadModal(false)}
       />
     </div>
   );
