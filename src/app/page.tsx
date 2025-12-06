@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import ProjectService from '../services/projectService';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -12,6 +13,8 @@ export default function Home() {
   const [showFrontendDropdown, setShowFrontendDropdown] = useState(false);
   const [showBackendDropdown, setShowBackendDropdown] = useState(false);
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState<{message: string, percentage: number} | null>(null);
+  const [projectService] = useState(() => new ProjectService());
 
   const frontendFrameworks = ['React', 'Vue', 'Angular', 'Svelte', 'Ember', 'Preact', 'Lit', 'SolidJS'];
   const backendFrameworks = ['Node.js', 'Python', 'Ruby', 'Java', 'PHP', 'Go', 'Rust', 'C#'];
@@ -22,31 +25,40 @@ export default function Home() {
     setSearchBackend('');
   }, [mode, generateType]);
 
+  useEffect(() => {
+    const initProgress = async () => {
+      try {
+        await projectService.initializeProgressTracking((message, percentage) => {
+          setProgress({ message, percentage });
+        });
+      } catch (err) {
+        console.error('Failed to initialize progress tracking:', err);
+      }
+    };
+    initProgress();
+  }, [projectService]);
+
   const handleGo = async () => {
     const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
-    if (!githubUrlRegex.test(inputText.trim())) {
+    if (mode === 'conversion' && !githubUrlRegex.test(inputText.trim())) {
       setError('Please enter a valid GitHub URL (e.g., https://github.com/username/repo)');
       return;
     }
+    if (!selectedFramework) {
+      setError('Please select a framework');
+      return;
+    }
     setError('');
+    setProgress(null); // Reset progress
     try {
-      const response = await fetch('/api/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          inputText,
-          mode,
-          generateType,
-          selectedFramework,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error('API call failed');
-      }
-      const data = await response.json();
-      console.log('API response:', data);
+      const params = {
+        githubUrl: mode === 'conversion' ? inputText : undefined,
+        mode,
+        type: mode === 'generate' ? generateType : undefined,
+        targetFramework: selectedFramework.toLowerCase(),
+      };
+      const data = await projectService.processProject(params);
+      console.log('Process completed:', data);
       // Handle success, e.g., navigate to result page or show message
     } catch (err) {
       setError('Failed to process request. Please try again.');
@@ -222,6 +234,20 @@ export default function Home() {
                 </div>
               </div>
             </>
+          )}
+
+          {/* Progress Display */}
+          {progress && (
+            <div className="mb-6">
+              <p className="text-white text-lg mb-2">{progress.message}</p>
+              <div className="w-full bg-white/20 rounded-full h-4">
+                <div
+                  className="bg-purple-600 h-4 rounded-full transition-all duration-300"
+                  style={{ width: `${progress.percentage}%` }}
+                ></div>
+              </div>
+              <p className="text-white text-sm mt-1">{progress.percentage}% complete</p>
+            </div>
           )}
 
           {/* Go Button */}
