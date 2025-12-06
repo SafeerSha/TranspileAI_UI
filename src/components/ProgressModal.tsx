@@ -26,35 +26,25 @@ export default function ProgressModal({ isOpen, progress, onClose }: ProgressMod
 
           <h3 className="text-2xl font-bold text-white mb-4">Processing Your Request</h3>
 
-          {progress ? (
-            <>
-              <p className="text-white text-lg mb-6">{progress.message}</p>
+          <p className="text-white text-lg mb-6">{progress ? progress.message : 'Initializing...'}</p>
 
-              <div className="w-full bg-white/20 rounded-full h-8 mb-4 overflow-hidden relative">
-                <div
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-8 rounded-full transition-all duration-300 ease-out flex items-center justify-center text-white font-semibold text-sm"
-                  style={{ width: `${progress.percentage}%` }}
-                >
-                  {progress.percentage > 10 && `${progress.percentage}%`}
-                </div>
+          <div className="w-full bg-white/20 rounded-full h-8 mb-4 overflow-hidden relative">
+            <div
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-8 rounded-full transition-all duration-300 ease-out flex items-center justify-center text-white font-semibold text-sm"
+              style={{ width: `${progress ? progress.percentage : 0}%` }}
+            >
+              {(progress ? progress.percentage : 0) > 10 && `${progress ? progress.percentage : 0}%`}
+            </div>
+          </div>
+
+          <p className="text-white text-sm font-medium">{progress ? progress.percentage : 0}% Complete</p>
+
+          {progress && progress.percentage >= 100 && (
+            <div className="mt-6">
+              <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-white text-xl">✓</span>
               </div>
-
-              <p className="text-white text-sm font-medium">{progress.percentage}% Complete</p>
-
-              {progress.percentage >= 100 && (
-                <div className="mt-6">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
-                    <span className="text-white text-xl">✓</span>
-                  </div>
-                  <p className="text-green-300 text-sm">Process completed successfully!</p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center justify-center space-x-2">
-              <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce"></div>
-              <div className="w-4 h-4 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-4 h-4 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <p className="text-green-300 text-sm">Process completed successfully!</p>
             </div>
           )}
         </div>

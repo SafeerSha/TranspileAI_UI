@@ -41,7 +41,7 @@ function buildFolderTree(paths: string[]): FolderNode[] {
 
 function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.ReactElement {
   return (
-    <div className="font-mono text-white/80">
+    <pre className="font-mono text-white whitespace-pre-wrap">
       {nodes.map((node, index) => {
         const isLast = index === nodes.length - 1;
         const connector = isLast ? '└─' : '├─';
@@ -53,7 +53,7 @@ function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.React
           </div>
         );
       })}
-    </div>
+    </pre>
   );
 }
 
