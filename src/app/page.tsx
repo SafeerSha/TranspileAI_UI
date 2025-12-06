@@ -74,9 +74,21 @@ export default function Home() {
         setProgress({ message: progressData.message, percentage: progressData.percentage });
       });
 
-      // After polling completes, handle success
-      console.log('Process completed successfully');
-      // You can add navigation or further actions here
+      // After polling completes, download the project
+      console.log('Process completed successfully, downloading project...');
+      const blob = await projectService.downloadProject(data.projectId);
+
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `project-${data.projectId}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      console.log('Download initiated');
     } catch (err) {
       setError('Failed to process request. Please try again.');
       console.error('API error:', err);

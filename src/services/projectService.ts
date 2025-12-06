@@ -28,7 +28,7 @@ interface CreateBaseResponse {
 }
 
 interface ProcessProjectResponse {
-  id: string;
+  projectId: string;
   folders: string[];
   taskId: string;
 }
