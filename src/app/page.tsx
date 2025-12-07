@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
+import { Sparkles } from 'lucide-react';
 import ProjectService from '../services/projectService';
 import ProgressModal from '../components/ProgressModal';
 import DownloadModal from '../components/DownloadModal';
@@ -362,9 +363,10 @@ export default function Home() {
           {/* Go Button */}
           <button
             onClick={handleGo}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-md text-bold text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-md text-bold text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
           >
-            Go ✨
+            Go
+            <Sparkles className="w-5 h-5" />
           </button>
         </div>
       </div>
