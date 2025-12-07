@@ -159,35 +159,23 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-900">
       {/* Hero Section */}
-      <div className="flex flex-col items-center justify-center py-20 px-4 text-center text-white">
+      <div className="flex flex-col items-center justify-center py-10 md:py-20 px-4 text-center text-white">
         <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
           StartUply
         </h1>
         <p className="text-xl md:text-2xl mb-8 max-w-2xl opacity-90">
-          Launch your startup ideas with AI-powered code generation. Convert concepts into production-ready applications across multiple frameworks.
-        </p>
-        <div className="flex space-x-4">
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-            ⚡
-          </div>
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-            🚀
-          </div>
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-            💻
-          </div>
-        </div>
+          Transform any project from one tech stack to another, and auto-generate backend or frontend code directly from your GitHub repo.</p>
       </div>
 
       {/* Form Section */}
       <div className="flex items-center justify-center px-4 pb-20">
-        <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-8 shadow-2xl max-w-2xl w-full border border-white/20">
+        <div className="bg-white/10 backdrop-blur-lg rounded-3xl p-4 md:p-8 shadow-2xl max-w-2xl w-full border border-white/20">
           <h2 className="text-3xl font-semibold text-white text-center mb-8">Get Started</h2>
 
           {/* Input GitHub URL */}
           <div className="mb-6">
             <label className="block text-white text-lg mb-2">GitHub Repository URL</label>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="url"
                 value={inputText}
@@ -210,7 +198,7 @@ export default function Home() {
           {/* From Framework Selection */}
           {mode === 'conversion' && (
             <div className="mb-6">
-              <label className="block text-white text-lg mb-2">From Framework</label>
+              <label className="block text-white text-lg mb-2">Source Tech</label>
               <div className="relative">
                 <input
                   type="text"
@@ -218,7 +206,7 @@ export default function Home() {
                   onChange={(e) => setSearchFrom(e.target.value)}
                   onFocus={() => setShowFromDropdown(true)}
                   onBlur={() => setTimeout(() => setShowFromDropdown(false), 200)}
-                  placeholder="Search and select source framework"
+                  placeholder=" select source tech"
                   className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                 />
                 {showFromDropdown && (
@@ -245,7 +233,7 @@ export default function Home() {
           {/* Mode Selection */}
           <div className="mb-6">
             <label className="block text-white text-lg mb-3">Choose Mode</label>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
               <button
                 onClick={() => setMode('conversion')}
                 className={`py-2 px-6 rounded-lg font-medium transition-all ${mode === 'conversion' ? 'bg-purple-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}
@@ -264,7 +252,7 @@ export default function Home() {
           {/* Framework Selection */}
           {mode === 'conversion' && (
             <div className="mb-6">
-              <label className="block text-white text-lg mb-2">Select Frontend Framework</label>
+              <label className="block text-white text-lg mb-2">Target Tech</label>
               <div className="relative">
                 <input
                   type="text"
@@ -272,7 +260,7 @@ export default function Home() {
                   onChange={(e) => setSearchFrontend(e.target.value)}
                   onFocus={() => setShowFrontendDropdown(true)}
                   onBlur={() => setTimeout(() => setShowFrontendDropdown(false), 200)}
-                  placeholder="Search and select framework"
+                  placeholder=" select target tech"
                   className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                 />
                 {showFrontendDropdown && (
@@ -300,7 +288,7 @@ export default function Home() {
             <>
               <div className="mb-6">
                 <label className="block text-white text-lg mb-3">Type</label>
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                   <button
                     onClick={() => setGenerateType('frontend')}
                     className={`py-2 px-6 rounded-lg font-medium transition-all ${generateType === 'frontend' ? 'bg-purple-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}
@@ -318,7 +306,7 @@ export default function Home() {
 
               <div className="mb-8">
                 <label className="block text-white text-lg mb-2">
-                  Select {generateType === 'frontend' ? 'Frontend' : 'Backend'} Framework
+                  Select {generateType === 'frontend' ? 'Frontend' : 'Backend'} Tech
                 </label>
                 <div className="relative">
                   <input
@@ -329,7 +317,7 @@ export default function Home() {
                     onBlur={() => setTimeout(() => {
                       generateType === 'frontend' ? setShowFrontendDropdown(false) : setShowBackendDropdown(false);
                     }, 200)}
-                    placeholder={`Search and select ${generateType} framework`}
+                    placeholder={` select ${generateType} tech`}
                     className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
                   />
                   {generateType === 'frontend' && showFrontendDropdown && (
@@ -374,7 +362,7 @@ export default function Home() {
           {/* Go Button */}
           <button
             onClick={handleGo}
-            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-md text-bold text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Go ✨
           </button>
