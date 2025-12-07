@@ -51,6 +51,8 @@ class ProjectService {
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(`${BACKEND_URL}/progressHub`)
       .withAutomaticReconnect()
+      .withHubProtocol(new signalR.JsonHubProtocol())
+      .configureLogging(signalR.LogLevel.Information)
       .build();
 
     this.connection.on('ReceiveProgress', (message: string, percentage: number) => {
@@ -59,9 +61,15 @@ class ProjectService {
       }
     });
 
-    await this.connection.start();
-    this.connectionId = this.connection.connectionId;
-    return this.connectionId!;
+    try {
+      await this.connection.start();
+      this.connectionId = this.connection.connectionId;
+      console.log('SignalR connection established:', this.connectionId);
+      return this.connectionId!;
+    } catch (err) {
+      console.error('Failed to start SignalR connection:', err);
+      throw new Error('Failed to establish real-time connection. Please refresh the page and try again.');
+    }
   }
 
   // Process API - Main endpoint for cloning, conversion, generation
