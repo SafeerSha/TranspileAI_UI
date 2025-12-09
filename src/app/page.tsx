@@ -29,6 +29,10 @@ export default function Home() {
   const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
   const [extractedStructure, setExtractedStructure] = useState<any>(null);
   const [projectService] = useState(() => new ProjectService());
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: ''
+  });
 
   const [frontendFrameworks, setFrontendFrameworks] = useState<string[]>([
     'React', 'Angular', 'Vue.js', 'Svelte', 'SolidJS', 'Ember.js', 'Backbone.js', 'Preact', 'Alpine.js', 'Lit',
@@ -137,6 +141,8 @@ export default function Home() {
         type: mode === 'generate' ? generateType : undefined,
         targetFramework: selectedFramework.toLowerCase(),
         fromFramework: mode === 'conversion' ? fromFramework.toLowerCase() : undefined,
+        username: credentials.username || undefined,
+        password: credentials.password || undefined,
       };
       const data = await projectService.processProject(params);
       console.log('Process started:', data);
@@ -150,9 +156,16 @@ export default function Home() {
       console.log('Process completed successfully');
       setShowDownloadModal(true);
       setProjectData(data);
-    } catch (err) {
-      toast.error('Failed to process request. Please try again.');
+    } catch (err: any) {
       console.error('API error:', err);
+
+      // Handle authentication errors specifically
+      if (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('credentials'))) {
+        toast.error('Authentication failed. Please check your credentials and try again.');
+      } else {
+        toast.error('Failed to process request. Please try again.');
+      }
+
       setShowModal(false); // Hide modal on error
     }
   };
@@ -195,6 +208,33 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {/* Credentials for Private Repos */}
+          {inputText && (
+            <div className="mb-6">
+              <label className="block text-white text-lg mb-2">Credentials (for private repos only)</label>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={credentials.username}
+                  onChange={(e) => setCredentials({...credentials, username: e.target.value})}
+                  placeholder="Username"
+                  className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
+                />
+                <input
+                  type="password"
+                  value={credentials.password}
+                  onChange={(e) => setCredentials({...credentials, password: e.target.value})}
+                  placeholder="Password or Personal Access Token"
+                  className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent backdrop-blur-sm"
+                />
+                <p className="text-sm text-white/70">
+                  For better security, use a Personal Access Token instead of your password.
+                  Credentials are only needed for private repositories.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* From Framework Selection */}
           {mode === 'conversion' && (

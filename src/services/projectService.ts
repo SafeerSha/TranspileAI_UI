@@ -8,6 +8,8 @@ interface ProcessProjectParams {
   type?: 'backend' | 'frontend';
   targetFramework: string;
   fromFramework?: string;
+  username?: string;
+  password?: string;
 }
 
 interface ConvertProjectParams {
@@ -73,7 +75,7 @@ class ProjectService {
   }
 
   // Process API - Main endpoint for cloning, conversion, generation
-  async processProject({ githubUrl, mode, type, targetFramework, fromFramework }: ProcessProjectParams): Promise<ProcessProjectResponse> {
+  async processProject({ githubUrl, mode, type, targetFramework, fromFramework, username, password }: ProcessProjectParams): Promise<ProcessProjectResponse> {
     const response = await fetch(`${BACKEND_URL}/api/project/process`, {
       method: 'POST',
       headers: {
@@ -85,12 +87,23 @@ class ProjectService {
         type,
         targetFramework,
         fromFramework,
+        username: username || null,
+        password: password || null,
         connectionId: this.connectionId
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Process failed: ${response.statusText}`);
+      let errorMessage = `Process failed: ${response.statusText}`;
+      if (response.status === 400) {
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If parsing fails, use default message
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();
