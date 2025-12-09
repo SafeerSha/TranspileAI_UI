@@ -218,7 +218,7 @@ export default function Home() {
           </div>
 
           {/* Credentials for Private Repos */}
-          {inputText && (
+          {/* {inputText && (
             <div className="mb-6">
               <label className="block text-white text-lg mb-2">Credentials (for private repos only)</label>
               <div className="space-y-3">
@@ -242,7 +242,7 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* From Framework Selection */}
           {mode === 'conversion' && (
