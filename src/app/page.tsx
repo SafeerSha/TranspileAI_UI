@@ -8,6 +8,7 @@ import ProgressModal from '../components/ProgressModal';
 import DownloadModal from '../components/DownloadModal';
 import StructureModal from '../components/StructureModal';
 import ExtractionModal from '../components/ExtractionModal';
+import CredentialsModal from '../components/CredentialsModal';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -26,6 +27,7 @@ export default function Home() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showStructureModal, setShowStructureModal] = useState(false);
   const [showExtractionModal, setShowExtractionModal] = useState(false);
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [projectData, setProjectData] = useState<{projectId: string, folders: string[], taskId: string} | null>(null);
   const [extractedStructure, setExtractedStructure] = useState<any>(null);
   const [projectService] = useState(() => new ProjectService());
@@ -33,6 +35,7 @@ export default function Home() {
     username: '',
     password: ''
   });
+  const [pendingOperation, setPendingOperation] = useState<(() => void) | null>(null);
 
   const [frontendFrameworks, setFrontendFrameworks] = useState<string[]>([
     'React', 'Angular', 'Vue.js', 'Svelte', 'SolidJS', 'Ember.js', 'Backbone.js', 'Preact', 'Alpine.js', 'Lit',
@@ -83,7 +86,7 @@ export default function Home() {
     setShowExtractionModal(true);
 
     // Start extraction in background
-    const extractPromise = projectService.extractProjectStructure(inputText.trim());
+    const extractPromise = projectService.extractProjectStructure(inputText.trim(), credentials.username, credentials.password);
 
     // Show animation for 10 seconds
     setTimeout(async () => {
@@ -92,9 +95,14 @@ export default function Home() {
         setExtractedStructure(data.structure);
         setShowExtractionModal(false);
         setShowStructureModal(true);
-      } catch (err) {
-        toast.error('Failed to extract project structure. Please try again.');
-        console.error('Extract error:', err);
+      } catch (err: any) {
+        if (err.message && err.message.includes('Authentication required')) {
+          setPendingOperation(() => handleExtract);
+          setShowCredentialsModal(true);
+        } else {
+          toast.error('Failed to extract project structure. Please try again.');
+          console.error('Extract error:', err);
+        }
         setShowExtractionModal(false);
       }
     }, 10000); // 10 seconds
@@ -433,6 +441,19 @@ export default function Home() {
       <ExtractionModal
         isOpen={showExtractionModal}
         onClose={() => setShowExtractionModal(false)}
+      />
+
+      <CredentialsModal
+        isOpen={showCredentialsModal}
+        onClose={() => setShowCredentialsModal(false)}
+        onSubmit={(username, password) => {
+          setCredentials({ username, password });
+          setShowCredentialsModal(false);
+          if (pendingOperation) {
+            pendingOperation();
+            setPendingOperation(null);
+          }
+        }}
       />
 
       <Toaster />

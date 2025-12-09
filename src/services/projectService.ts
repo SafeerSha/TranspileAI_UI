@@ -210,17 +210,32 @@ class ProjectService {
   }
 
   // Extract project structure
-  async extractProjectStructure(url: string): Promise<any> {
+  async extractProjectStructure(url: string, username?: string, password?: string): Promise<any> {
     const response = await fetch(`${BACKEND_URL}/api/project/extract`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({
+        url,
+        username: username || null,
+        password: password || null
+      })
     });
 
     if (!response.ok) {
-      throw new Error(`Extract failed: ${response.statusText}`);
+      let errorMessage = `Extract failed: ${response.statusText}`;
+      if (response.status === 401) {
+        errorMessage = 'Authentication required for this repository';
+      } else if (response.status === 400) {
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch {
+          // If parsing fails, use default message
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();
