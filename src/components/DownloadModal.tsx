@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Github, Check, Copy, ExternalLink, Shield, Sparkles, FolderTree, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Download, Github, Check, Copy, ExternalLink, Shield, Sparkles, FolderTree, AlertCircle, RefreshCw, Eye, EyeOff, RotateCcw } from 'lucide-react';
 
 interface DownloadModalProps {
   isOpen: boolean;
@@ -7,6 +7,7 @@ interface DownloadModalProps {
   onDownload: () => void;
   onPushToGithub: (params: { repoName: string; isPrivate: boolean; description: string; githubToken: string }) => Promise<{ repoUrl: string; cloneUrl: string }>;
   onClose: () => void;
+  onResetProcess?: () => void;
 }
 
 interface FolderNode {
@@ -60,7 +61,7 @@ function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.React
   );
 }
 
-export default function DownloadModal({ isOpen, projectData, onDownload, onPushToGithub, onClose }: DownloadModalProps) {
+export default function DownloadModal({ isOpen, projectData, onDownload, onPushToGithub, onClose, onResetProcess }: DownloadModalProps) {
   const [tab, setTab] = useState<'download' | 'github'>('download');
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -196,13 +197,22 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
               </div>
 
               {/* Download Tab Buttons */}
-              <div className="pt-2 flex gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={onClose}
-                  className="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                  className="py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
                 >
-                  Cancel
+                  Close
                 </button>
+                {onResetProcess && (
+                  <button
+                    onClick={onResetProcess}
+                    className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white font-semibold text-xs border border-slate-700 hover:border-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4 text-indigo-400" />
+                    <span>New Process</span>
+                  </button>
+                )}
                 <button
                   onClick={handleDownload}
                   disabled={isDownloading}
@@ -282,14 +292,23 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                     </div>
                   </div>
 
-                  {/* Close button */}
-                  <div className="pt-2">
+                  {/* Close & New Process buttons */}
+                  <div className="pt-2 flex gap-3">
                     <button
                       onClick={onClose}
-                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                      className="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
                     >
                       Close Window
                     </button>
+                    {onResetProcess && (
+                      <button
+                        onClick={onResetProcess}
+                        className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Start New Process</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (

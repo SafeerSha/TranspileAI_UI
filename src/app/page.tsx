@@ -19,7 +19,10 @@ import {
   Info,
   HelpCircle,
   Cpu,
-  FileCode
+  FileCode,
+  RotateCcw,
+  X,
+  KeyRound
 } from 'lucide-react';
 
 import ProjectService from '../services/projectService';
@@ -220,6 +223,36 @@ export default function Home() {
     toast.success(`Loaded sample: ${sourceFw} ➔ ${targetFw}`);
   };
 
+  const handleResetProcess = () => {
+    setInputText('');
+    setMode('conversion');
+    setGenerateType('frontend');
+    setSelectedFramework('');
+    setFromFramework('');
+    setSearchFrontend('');
+    setSearchBackend('');
+    setSearchFrom('');
+    setShowFrontendDropdown(false);
+    setShowBackendDropdown(false);
+    setShowFromDropdown(false);
+    setProgress(null);
+    setShowModal(false);
+    setShowDownloadModal(false);
+    setShowStructureModal(false);
+    setShowExtractionModal(false);
+    setShowCredentialsModal(false);
+    setProjectData(null);
+    setExtractedStructure(null);
+    setCredentials({ username: '', password: '' });
+    setPendingOperation(null);
+    toast.success('Process reset successfully. Ready for a new task!');
+  };
+
+  const handleClearCredentials = () => {
+    setCredentials({ username: '', password: '' });
+    toast.success('Git authentication credentials cleared.');
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans subtle-grid">
       {/* Top Header */}
@@ -242,12 +275,33 @@ export default function Home() {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               SignalR Engine Connected
             </div>
+            {credentials.password && (
+              <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Git Auth Saved {credentials.username ? `(@${credentials.username})` : ''}</span>
+                <button
+                  onClick={handleClearCredentials}
+                  className="ml-1 text-slate-400 hover:text-rose-400"
+                  title="Clear Git credentials"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <a href="#how-it-works" className="hover:text-white transition-colors">
               How It Works
             </a>
             <a href="#faqs" className="hover:text-white transition-colors">
               Guide & FAQs
             </a>
+            <button
+              onClick={handleResetProcess}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 hover:border-indigo-500/30 transition-all text-xs font-semibold"
+              title="Clear form and reset process"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset Process</span>
+            </button>
           </div>
         </div>
       </header>
@@ -304,8 +358,17 @@ export default function Home() {
                 Follow the 4 simple guided steps below to convert or generate code.
               </p>
             </div>
-            <div className="hidden sm:block text-right">
-              <span className="text-xs text-indigo-400 code-pill uppercase font-semibold">4-Step Guided Setup</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleResetProcess}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/80 transition-all text-xs font-medium"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Clear Form</span>
+              </button>
+              <div className="hidden sm:block text-right">
+                <span className="text-xs text-indigo-400 code-pill uppercase font-semibold">4-Step Guided Setup</span>
+              </div>
             </div>
           </div>
 
@@ -345,6 +408,27 @@ export default function Home() {
                 <span>Extract Structure</span>
               </button>
             </div>
+
+            {/* Git Authentication Status Badge */}
+            {credentials.password && (
+              <div className="mt-2.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="font-semibold text-emerald-200">
+                    Git Authenticated {credentials.username ? `(@${credentials.username})` : '(Token Saved)'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearCredentials}
+                  className="text-emerald-400 hover:text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg transition-all flex items-center gap-1 font-medium cursor-pointer"
+                  title="Clear saved Git credentials"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Clear Auth</span>
+                </button>
+              </div>
+            )}
 
             {/* Quick Demo Pre-fills */}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
@@ -836,6 +920,7 @@ export default function Home() {
         onDownload={handleDownload}
         onPushToGithub={handlePushToGithub}
         onClose={() => setShowDownloadModal(false)}
+        onResetProcess={handleResetProcess}
       />
 
       <StructureModal
