@@ -22,10 +22,13 @@ import {
   FileCode,
   RotateCcw,
   X,
-  KeyRound
+  KeyRound,
+  Menu,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 
-import ProjectService from '../services/projectService';
+import ProjectService, { detectTechFromTree, DetectedTech } from '../services/projectService';
 import ProgressModal from '../components/ProgressModal';
 import DownloadModal from '../components/DownloadModal';
 import StructureModal from '../components/StructureModal';
@@ -52,6 +55,9 @@ export default function Home() {
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [projectData, setProjectData] = useState<{ projectId: string; folders: string[]; taskId: string } | null>(null);
   const [extractedStructure, setExtractedStructure] = useState<any>(null);
+  const [detectedTech, setDetectedTech] = useState<DetectedTech | null>(null);
+  const [isDetectingTech, setIsDetectingTech] = useState(false);
+  const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState('');
   const [projectService] = useState(() => new ProjectService());
   const [credentials, setCredentials] = useState({
     username: '',
@@ -59,6 +65,54 @@ export default function Home() {
   });
   const [pendingOperation, setPendingOperation] = useState<((u?: string, p?: string) => void) | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const autoDetectRepoTech = async (url: string, customUsername?: string, customPassword?: string) => {
+    const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
+    const trimmedUrl = url.trim();
+    if (!githubUrlRegex.test(trimmedUrl) || trimmedUrl === lastAnalyzedUrl) return;
+
+    setIsDetectingTech(true);
+    setLastAnalyzedUrl(trimmedUrl);
+
+    const user = typeof customUsername === 'string' ? customUsername : credentials.username;
+    const pass = typeof customPassword === 'string' ? customPassword : credentials.password;
+
+    try {
+      const data = await projectService.extractProjectStructure(trimmedUrl, user, pass);
+      setExtractedStructure(data.structure);
+
+      const tech = data.detectedTech && data.detectedTech.name !== 'Unknown'
+        ? data.detectedTech
+        : detectTechFromTree(data.structure);
+
+      if (tech && tech.name !== 'Unknown') {
+        setDetectedTech(tech);
+        setFromFramework(tech.name);
+        setSearchFrom(tech.name);
+        toast.success(`✨ Detected project technology: ${tech.name}! Pre-filled as Source Tech.`);
+      }
+    } catch (err: any) {
+      if (err.status === 401 || (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('401')))) {
+        setPendingOperation(() => (u?: string, p?: string) => autoDetectRepoTech(trimmedUrl, u, p));
+        setShowCredentialsModal(true);
+      }
+    } finally {
+      setIsDetectingTech(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
+      if (githubUrlRegex.test(inputText.trim())) {
+        autoDetectRepoTech(inputText.trim());
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [inputText, credentials]);
+
 
   const [frontendFrameworks] = useState<string[]>([
     'React', 'Angular', 'Vue.js', 'Svelte', 'SolidJS', 'Ember.js', 'Backbone.js', 'Preact', 'Alpine.js', 'Lit',
@@ -70,12 +124,21 @@ export default function Home() {
   ]);
 
   const [backendFrameworks] = useState<string[]>([
-    'Express', 'Koa', 'Fastify', 'Django', 'Flask', 'FastAPI', 'Spring Boot', 'Laravel', 'Symfony', 'Rails',
-    'Gin', 'Echo', 'Actix', 'Rocket', '.NET Core', 'Micronaut'
+    'Express', 'NestJS', 'Koa', 'Fastify', 'Hono', 'ElysiaJS', 'AdonisJS', 'Sails.js', 'FeathersJS',
+    'Spring Boot', 'Spring MVC', 'Quarkus', 'Micronaut', 'Jakarta EE',
+    '.NET / ASP.NET Core', '.NET Web API', '.NET Core', 'Blazor Server',
+    'Django', 'FastAPI', 'Flask', 'Tornado', 'Pyramid', 'Litestar',
+    'Laravel', 'Symfony', 'CodeIgniter', 'CakePHP', 'Yii',
+    'Ruby on Rails', 'Sinatra', 'Hanami',
+    'Gin', 'Echo', 'Fiber', 'Chi', 'Beego',
+    'Actix Web', 'Axum', 'Rocket', 'Warp',
+    'Ktor', 'Phoenix'
   ]);
 
-  const popularSourceFrameworks = ['React', 'Vue.js', 'Angular', 'Express', 'Django'];
-  const popularTargetFrameworks = ['Next.js', 'Nuxt.js', 'SvelteKit', 'FastAPI', 'Spring Boot'];
+  const allFrameworks = Array.from(new Set([...frontendFrameworks, ...backendFrameworks])).sort((a, b) => a.localeCompare(b));
+
+  const popularSourceFrameworks = ['React', 'Vue.js', 'Express', 'Spring Boot', '.NET / ASP.NET Core', 'Django', 'Laravel'];
+  const popularTargetFrameworks = ['Next.js', 'Nuxt.js', 'Spring Boot', '.NET / ASP.NET Core', 'FastAPI', 'NestJS'];
 
   useEffect(() => {
     setSelectedFramework('');
@@ -117,6 +180,18 @@ export default function Home() {
     try {
       const data = await projectService.extractProjectStructure(inputText.trim(), user, pass);
       setExtractedStructure(data.structure);
+
+      const tech = data.detectedTech && data.detectedTech.name !== 'Unknown'
+        ? data.detectedTech
+        : detectTechFromTree(data.structure);
+
+      if (tech && tech.name !== 'Unknown') {
+        setDetectedTech(tech);
+        setFromFramework(tech.name);
+        setSearchFrom(tech.name);
+        toast.success(`✨ Auto-detected technology stack: ${tech.name}! Pre-filled as Source Tech.`);
+      }
+
       setShowExtractionModal(false);
       setShowStructureModal(true);
     } catch (err: any) {
@@ -220,6 +295,13 @@ export default function Home() {
     setSearchFrom(sourceFw);
     setSelectedFramework(targetFw);
     setSearchFrontend(targetFw);
+    setLastAnalyzedUrl(url);
+    setDetectedTech({
+      name: sourceFw,
+      category: 'general',
+      confidence: 'high',
+      summary: `Sample preset: ${sourceFw}`
+    });
     toast.success(`Loaded sample: ${sourceFw} ➔ ${targetFw}`);
   };
 
@@ -243,6 +325,9 @@ export default function Home() {
     setShowCredentialsModal(false);
     setProjectData(null);
     setExtractedStructure(null);
+    setDetectedTech(null);
+    setLastAnalyzedUrl('');
+    setIsDetectingTech(false);
     setCredentials({ username: '', password: '' });
     setPendingOperation(null);
     toast.success('Process reset successfully. Ready for a new task!');
@@ -254,141 +339,200 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans subtle-grid">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans subtle-grid">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-slate-950/90 border-b border-slate-800/80 px-6 py-3.5">
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/90 border-b border-zinc-800/80 px-4 sm:px-6 py-3.5">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-sm shadow-sm">
-              <Terminal className="w-4 h-4" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-600 text-black flex items-center justify-center font-mono font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/25 shrink-0">
+              <Terminal className="w-4 h-4 text-black" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold tracking-tight text-white">TranspileAI</span>
-              <span className="code-pill text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+              <span className="text-lg sm:text-xl font-bold tracking-tight text-white">TranspileAI</span>
+              <span className="code-pill text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-semibold">
                 v1.0 Engine
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs font-medium text-slate-300">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              SignalR Engine Connected
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-4 text-xs font-medium text-zinc-300">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              Engine Online
             </div>
             {credentials.password && (
-              <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                 <span>Git Auth Saved {credentials.username ? `(@${credentials.username})` : ''}</span>
                 <button
                   onClick={handleClearCredentials}
-                  className="ml-1 text-slate-400 hover:text-rose-400"
+                  className="ml-1 text-zinc-400 hover:text-rose-400 cursor-pointer"
                   title="Clear Git credentials"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
             )}
-            <a href="#how-it-works" className="hover:text-white transition-colors">
+            <a href="#how-it-works" className="hover:text-amber-400 transition-colors">
               How It Works
             </a>
-            <a href="#faqs" className="hover:text-white transition-colors">
+            <a href="#faqs" className="hover:text-amber-400 transition-colors">
               Guide & FAQs
             </a>
             <button
               onClick={handleResetProcess}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 hover:border-indigo-500/30 transition-all text-xs font-semibold"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 border border-zinc-800 hover:border-amber-500/40 transition-all text-xs font-semibold cursor-pointer"
               title="Clear form and reset process"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset Process</span>
             </button>
           </div>
+
+          {/* Mobile Menu Toggle Button */}
+          <div className="flex items-center gap-2 md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-zinc-800/80 mt-3 pt-3 pb-2 space-y-3 px-1 bg-black/95 backdrop-blur-xl">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                Engine Online
+              </div>
+              {credentials.password && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Git Auth Saved</span>
+                  <button onClick={handleClearCredentials} className="text-zinc-400 hover:text-rose-400 ml-1">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <a
+                href="#how-it-works"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2.5 rounded-xl bg-zinc-900/80 text-zinc-200 hover:bg-amber-500/20 text-xs font-medium border border-zinc-800/80 text-center"
+              >
+                How It Works
+              </a>
+              <a
+                href="#faqs"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2.5 rounded-xl bg-zinc-900/80 text-zinc-200 hover:bg-amber-500/20 text-xs font-medium border border-zinc-800/80 text-center"
+              >
+                Guide & FAQs
+              </a>
+              <button
+                onClick={() => {
+                  handleResetProcess();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-900 text-amber-400 text-xs font-semibold border border-zinc-800 active:scale-[0.98] cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Process</span>
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
-      <section className="pt-12 pb-8 px-4 text-center max-w-4xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold mb-6">
-          <Cpu className="w-4 h-4 text-indigo-400" />
-          <span>Full-Stack Codebase Transpiler & Scaffold Engine</span>
+      <section className="pt-8 sm:pt-12 pb-6 sm:pb-8 px-4 text-center max-w-4xl mx-auto">
+        <div className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold mb-4 sm:mb-6 max-w-full">
+          <Cpu className="w-4 h-4 text-amber-400 shrink-0" />
+          <span className="truncate">Full-Stack Codebase Transpiler & Scaffold Engine</span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-5 leading-tight">
+        <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white mb-4 sm:mb-5 leading-tight">
           Convert Any Codebase to <br className="hidden sm:inline" />
-          <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 bg-clip-text text-transparent">
             Any Tech Stack
           </span>
         </h1>
 
-        <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed mb-8">
+        <p className="text-xs sm:text-base md:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed mb-6 sm:mb-8">
           Port existing GitHub repositories between frameworks or auto-generate complete frontend & backend structures with automated code transformation.
         </p>
 
         {/* Feature Badges */}
-        <div className="flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm text-slate-300 mb-8">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-zinc-300 mb-6 sm:mb-8">
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
+            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
             <span>50+ Frontend Stacks</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>15+ Backend Stacks</span>
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
+            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+            <span>35+ Backend Stacks</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
-            <ShieldCheck className="w-4 h-4 text-indigo-400" />
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
             <span>Private Repos Supported</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800">
-            <Zap className="w-4 h-4 text-amber-400" />
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800">
+            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
             <span>Instant Zip Export</span>
           </div>
         </div>
       </section>
 
       {/* Main Guided Form Section */}
-      <section className="px-4 pb-20 max-w-3xl mx-auto">
-        <div className="glass-panel rounded-3xl p-6 sm:p-10 border border-slate-800/80 shadow-2xl relative">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-5 mb-8">
+      <section className="px-3 sm:px-4 pb-16 sm:pb-20 max-w-3xl mx-auto">
+        <div className="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-10 border border-zinc-800/80 shadow-2xl relative">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-5 mb-6 sm:mb-8 gap-3">
             <div>
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <SlidersHorizontal className="w-6 h-6 text-indigo-400" />
+              <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+                <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
                 Configure Transformation
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              <p className="text-xs sm:text-sm text-zinc-400 mt-1">
                 Follow the 4 simple guided steps below to convert or generate code.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 shrink-0">
               <button
                 onClick={handleResetProcess}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/80 transition-all text-xs font-medium"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700/80 transition-all text-xs font-medium cursor-pointer active:scale-[0.98]"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Clear Form</span>
               </button>
               <div className="hidden sm:block text-right">
-                <span className="text-xs text-indigo-400 code-pill uppercase font-semibold">4-Step Guided Setup</span>
+                <span className="text-xs text-amber-400 code-pill uppercase font-semibold">4-Step Guided Setup</span>
               </div>
             </div>
           </div>
 
           {/* STEP 1: GitHub URL & Extraction */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm sm:text-base font-semibold text-slate-200 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center font-bold">1</span>
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-1">
+              <label className="text-sm sm:text-base font-semibold text-zinc-200 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-amber-500 text-black text-xs flex items-center justify-center font-extrabold shrink-0">1</span>
                 GitHub Repository URL
-                {mode === 'conversion' && <span className="text-rose-400 text-xs">*Required for conversion</span>}
+                {mode === 'conversion' && <span className="text-rose-400 text-xs">*Required</span>}
               </label>
-              <div className="flex items-center gap-1 text-xs text-slate-400">
-                <Info className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1 text-xs text-zinc-400 pl-8 sm:pl-0">
+                <Info className="w-3.5 h-3.5 text-amber-400" />
                 <span>Public or Private</span>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
               <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
                   <Github className="w-5 h-5" />
                 </div>
                 <input
@@ -396,32 +540,62 @@ export default function Home() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="https://github.com/username/repo"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 text-sm sm:text-base transition-all"
+                  className="w-full pl-11 pr-32 py-3 bg-zinc-900/90 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 text-xs sm:text-sm transition-all"
                 />
+                {isDetectingTech && (
+                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center gap-1.5 pointer-events-none text-amber-400 text-xs font-medium">
+                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                    <span className="hidden sm:inline text-amber-300 font-semibold">Detecting tech...</span>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => handleExtract()}
-                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white font-medium rounded-xl border border-slate-700 hover:border-indigo-500/40 transition-all flex items-center justify-center gap-2 text-sm shrink-0"
+                className="w-full sm:w-auto px-4 sm:px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-white font-semibold rounded-xl border border-amber-500/30 hover:border-amber-500/60 shadow-lg shadow-amber-500/10 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm shrink-0 cursor-pointer active:scale-[0.98]"
               >
-                <FolderTree className="w-4 h-4 text-indigo-400" />
+                <FolderTree className="w-4 h-4 text-amber-400" />
                 <span>Extract Structure</span>
               </button>
             </div>
 
+            {/* Auto-Detected Tech Banner */}
+            {detectedTech && (
+              <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-600/15 border border-amber-500/40 text-xs text-amber-300">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="font-semibold text-amber-200">Current Project Tech:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-black font-extrabold text-xs shadow">
+                    {detectedTech.name}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFromFramework(detectedTech.name);
+                    setSearchFrom(detectedTech.name);
+                    toast.success(`Set ${detectedTech.name} as Source Tech`);
+                  }}
+                  className="self-start sm:self-auto text-amber-400 hover:text-black hover:bg-amber-400 px-3 py-1 rounded-lg transition-all font-bold text-xs border border-amber-500/40 cursor-pointer"
+                >
+                  Set as Source Tech ➔
+                </button>
+              </div>
+            )}
+
             {/* Git Authentication Status Badge */}
             {credentials.password && (
-              <div className="mt-2.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+              <div className="mt-2.5 flex items-center justify-between px-3.5 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="font-semibold text-emerald-200">
+                  <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="font-semibold text-amber-200">
                     Git Authenticated {credentials.username ? `(@${credentials.username})` : '(Token Saved)'}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleClearCredentials}
-                  className="text-emerald-400 hover:text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg transition-all flex items-center gap-1 font-medium cursor-pointer"
+                  className="text-amber-400 hover:text-rose-400 hover:bg-rose-500/10 px-2 py-1 rounded-lg transition-all flex items-center gap-1 font-medium cursor-pointer"
                   title="Clear saved Git credentials"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -432,72 +606,79 @@ export default function Home() {
 
             {/* Quick Demo Pre-fills */}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-slate-400">Try quick samples:</span>
+              <span className="text-zinc-400 w-full sm:w-auto">Try quick samples:</span>
               <button
                 type="button"
                 onClick={() => setDemoRepo('https://github.com/facebook/react', 'React', 'Next.js')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-indigo-300 hover:bg-indigo-900/30 hover:text-indigo-200 border border-slate-700/60 transition-all"
+                className="px-3 py-1.5 rounded-lg bg-zinc-900/90 text-amber-400 hover:bg-amber-950/40 hover:text-amber-300 border border-amber-500/30 transition-all active:scale-[0.98] cursor-pointer"
               >
                 ⚡ React ➔ Next.js
               </button>
               <button
                 type="button"
                 onClick={() => setDemoRepo('https://github.com/expressjs/express', 'Express', 'FastAPI')}
-                className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-purple-300 hover:bg-purple-900/30 hover:text-purple-200 border border-slate-700/60 transition-all"
+                className="px-3 py-1.5 rounded-lg bg-zinc-900/90 text-yellow-400 hover:bg-yellow-950/40 hover:text-yellow-300 border border-yellow-500/30 transition-all active:scale-[0.98] cursor-pointer"
               >
                 ⚡ Express ➔ FastAPI
+              </button>
+              <button
+                type="button"
+                onClick={() => setDemoRepo('https://github.com/spring-projects/spring-boot', 'Spring Boot', '.NET / ASP.NET Core')}
+                className="px-3 py-1.5 rounded-lg bg-zinc-900/90 text-amber-300 hover:bg-amber-950/40 hover:text-amber-200 border border-amber-500/30 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                ⚡ Spring Boot ➔ .NET Core
               </button>
             </div>
           </div>
 
           {/* STEP 2: Choose Mode */}
-          <div className="mb-8">
-            <label className="block text-sm sm:text-base font-semibold text-slate-200 mb-3">
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs inline-flex items-center justify-center font-bold mr-2">2</span>
+          <div className="mb-6 sm:mb-8">
+            <label className="block text-sm sm:text-base font-semibold text-zinc-200 mb-3">
+              <span className="w-6 h-6 rounded-full bg-amber-500 text-black text-xs inline-flex items-center justify-center font-extrabold mr-2">2</span>
               Select Transformation Mode
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div
                 onClick={() => setMode('conversion')}
-                className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all ${
+                className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all active:scale-[0.99] ${
                   mode === 'conversion'
-                    ? 'bg-indigo-600/20 border-indigo-500/80 ring-2 ring-indigo-500/30'
-                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                    ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30'
+                    : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
                     <RefreshCw className="w-5 h-5" />
                   </div>
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${mode === 'conversion' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${mode === 'conversion' ? 'bg-amber-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'}`}>
                     {mode === 'conversion' ? 'Selected' : 'Select'}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-white mb-1">Codebase Conversion</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-sm sm:text-base font-bold text-white mb-1">Codebase Conversion</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
                   Convert an existing GitHub repository from its current tech stack to a target framework.
                 </p>
               </div>
 
               <div
                 onClick={() => setMode('generate')}
-                className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all ${
+                className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all active:scale-[0.99] ${
                   mode === 'generate'
-                    ? 'bg-indigo-600/20 border-indigo-500/80 ring-2 ring-indigo-500/30'
-                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                    ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30'
+                    : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <div className="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
                     <FileCode className="w-5 h-5" />
                   </div>
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${mode === 'generate' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${mode === 'generate' ? 'bg-amber-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400'}`}>
                     {mode === 'generate' ? 'Selected' : 'Select'}
                   </span>
                 </div>
-                <h3 className="text-base font-bold text-white mb-1">Auto Generation</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-sm sm:text-base font-bold text-white mb-1">Auto Generation</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
                   Generate a clean, modular frontend or backend starting structure tailored to a target framework.
                 </p>
               </div>
@@ -505,23 +686,23 @@ export default function Home() {
           </div>
 
           {/* STEP 3: Framework Selection */}
-          <div className="mb-8">
-            <label className="block text-sm sm:text-base font-semibold text-slate-200 mb-3">
-              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs inline-flex items-center justify-center font-bold mr-2">3</span>
+          <div className="mb-6 sm:mb-8">
+            <label className="block text-sm sm:text-base font-semibold text-zinc-200 mb-3">
+              <span className="w-6 h-6 rounded-full bg-amber-500 text-black text-xs inline-flex items-center justify-center font-extrabold mr-2">3</span>
               Select Tech Frameworks
             </label>
 
             {mode === 'conversion' ? (
-              <div className="space-y-6 bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80">
+              <div className="space-y-5 sm:space-y-6 bg-zinc-950/80 p-4 sm:p-5 rounded-2xl border border-zinc-800/80">
                 {/* Source Tech */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Code2 className="w-4 h-4 text-indigo-400" />
+                    <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Code2 className="w-4 h-4 text-amber-400" />
                       Source Tech (Current Framework)
                     </label>
                     {fromFramework && (
-                      <span className="text-xs text-indigo-300 font-medium">Selected: {fromFramework}</span>
+                      <span className="text-xs text-amber-400 font-medium">Selected: {fromFramework}</span>
                     )}
                   </div>
                   <div className="relative">
@@ -532,11 +713,11 @@ export default function Home() {
                       onFocus={() => setShowFromDropdown(true)}
                       onBlur={() => setTimeout(() => setShowFromDropdown(false), 200)}
                       placeholder="Search or select source tech (e.g. React, Express)"
-                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
+                      className="w-full px-3.5 py-2.5 sm:py-3 bg-zinc-900 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-xs sm:text-sm"
                     />
                     {showFromDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl mt-1 max-h-48 overflow-y-auto z-30 shadow-2xl">
-                        {frontendFrameworks
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
+                        {allFrameworks
                           .filter((fw) => fw.toLowerCase().includes(searchFrom.toLowerCase()))
                           .map((fw) => (
                             <div
@@ -546,7 +727,7 @@ export default function Home() {
                                 setSearchFrom(fw);
                                 setShowFromDropdown(false);
                               }}
-                              className="px-4 py-2.5 hover:bg-indigo-600/30 cursor-pointer text-slate-200 text-sm border-b border-slate-800/50 last:border-0"
+                              className="px-4 py-3 hover:bg-amber-500/20 cursor-pointer text-zinc-200 text-xs sm:text-sm border-b border-zinc-800/50 last:border-0"
                             >
                               {fw}
                             </div>
@@ -555,7 +736,7 @@ export default function Home() {
                     )}
                   </div>
                   {/* Quick Pills for Source */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {popularSourceFrameworks.map((fw) => (
                       <button
                         key={fw}
@@ -564,10 +745,10 @@ export default function Home() {
                           setFromFramework(fw);
                           setSearchFrom(fw);
                         }}
-                        className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition-all active:scale-[0.98] cursor-pointer ${
                           fromFramework === fw
-                            ? 'bg-indigo-600 text-white border-indigo-500 font-semibold'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                            ? 'bg-amber-500 text-black border-amber-400 font-bold'
+                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
                         }`}
                       >
                         {fw}
@@ -577,24 +758,24 @@ export default function Home() {
                 </div>
 
                 {/* Arrow Bridge */}
-                <div className="flex items-center justify-center my-2 text-indigo-400">
-                  <div className="h-px bg-slate-800 flex-1" />
-                  <span className="px-3 text-xs text-indigo-300 font-mono flex items-center gap-1 bg-slate-900 py-1 rounded-full border border-slate-800">
-                    <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />
+                <div className="flex items-center justify-center my-2 text-amber-400">
+                  <div className="h-px bg-zinc-800 flex-1" />
+                  <span className="px-3 text-xs text-amber-400 font-mono flex items-center gap-1 bg-zinc-900 py-1 rounded-full border border-zinc-800">
+                    <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
                     Transpile To
                   </span>
-                  <div className="h-px bg-slate-800 flex-1" />
+                  <div className="h-px bg-zinc-800 flex-1" />
                 </div>
 
                 {/* Target Tech */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <Zap className="w-4 h-4 text-purple-400" />
+                    <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-amber-400" />
                       Target Tech (Destination Framework)
                     </label>
                     {selectedFramework && (
-                      <span className="text-xs text-purple-300 font-medium">Selected: {selectedFramework}</span>
+                      <span className="text-xs text-amber-400 font-medium">Selected: {selectedFramework}</span>
                     )}
                   </div>
                   <div className="relative">
@@ -604,12 +785,12 @@ export default function Home() {
                       onChange={(e) => setSearchFrontend(e.target.value)}
                       onFocus={() => setShowFrontendDropdown(true)}
                       onBlur={() => setTimeout(() => setShowFrontendDropdown(false), 200)}
-                      placeholder="Search or select target tech (e.g. Next.js, FastAPI)"
-                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
+                      placeholder="Search or select target tech (e.g. Next.js, FastAPI, Spring Boot, .NET)"
+                      className="w-full px-3.5 py-2.5 sm:py-3 bg-zinc-900 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-xs sm:text-sm"
                     />
                     {showFrontendDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl mt-1 max-h-48 overflow-y-auto z-30 shadow-2xl">
-                        {frontendFrameworks
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
+                        {allFrameworks
                           .filter((fw) => fw.toLowerCase().includes(searchFrontend.toLowerCase()))
                           .map((fw) => (
                             <div
@@ -619,7 +800,7 @@ export default function Home() {
                                 setSearchFrontend(fw);
                                 setShowFrontendDropdown(false);
                               }}
-                              className="px-4 py-2.5 hover:bg-purple-600/30 cursor-pointer text-slate-200 text-sm border-b border-slate-800/50 last:border-0"
+                              className="px-4 py-3 hover:bg-amber-500/20 cursor-pointer text-zinc-200 text-xs sm:text-sm border-b border-zinc-800/50 last:border-0"
                             >
                               {fw}
                             </div>
@@ -628,7 +809,7 @@ export default function Home() {
                     )}
                   </div>
                   {/* Quick Pills for Target */}
-                  <div className="mt-2 flex flex-wrap gap-1.5">
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {popularTargetFrameworks.map((fw) => (
                       <button
                         key={fw}
@@ -637,10 +818,10 @@ export default function Home() {
                           setSelectedFramework(fw);
                           setSearchFrontend(fw);
                         }}
-                        className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition-all active:scale-[0.98] cursor-pointer ${
                           selectedFramework === fw
-                            ? 'bg-purple-600 text-white border-purple-500 font-semibold'
-                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                            ? 'bg-amber-500 text-black border-amber-400 font-bold'
+                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
                         }`}
                       >
                         {fw}
@@ -651,19 +832,19 @@ export default function Home() {
               </div>
             ) : (
               /* Generate Mode Sub-types */
-              <div className="bg-slate-950/60 p-5 rounded-2xl border border-slate-800/80 space-y-5">
+              <div className="bg-zinc-950/80 p-4 sm:p-5 rounded-2xl border border-zinc-800/80 space-y-4 sm:space-y-5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
                     Generation Target Type
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2.5 sm:gap-3">
                     <button
                       type="button"
                       onClick={() => setGenerateType('frontend')}
-                      className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all border ${
+                      className={`flex-1 py-2.5 px-3 sm:px-4 rounded-xl font-medium text-xs sm:text-sm transition-all border cursor-pointer active:scale-[0.98] ${
                         generateType === 'frontend'
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                          ? 'bg-amber-500 text-black font-bold border-amber-400 shadow-lg shadow-amber-500/20'
+                          : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
                       }`}
                     >
                       💻 Frontend Project
@@ -671,10 +852,10 @@ export default function Home() {
                     <button
                       type="button"
                       onClick={() => setGenerateType('backend')}
-                      className={`flex-1 py-2.5 px-4 rounded-xl font-medium text-sm transition-all border ${
+                      className={`flex-1 py-2.5 px-3 sm:px-4 rounded-xl font-medium text-xs sm:text-sm transition-all border cursor-pointer active:scale-[0.98] ${
                         generateType === 'backend'
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-500/20'
-                          : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                          ? 'bg-amber-500 text-black font-bold border-amber-400 shadow-lg shadow-amber-500/20'
+                          : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
                       }`}
                     >
                       ⚙️ Backend Service
@@ -683,7 +864,7 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
                     Select {generateType === 'frontend' ? 'Frontend' : 'Backend'} Technology
                   </label>
                   <div className="relative">
@@ -708,10 +889,10 @@ export default function Home() {
                         }, 200)
                       }
                       placeholder={`Search ${generateType} framework...`}
-                      className="w-full px-4 py-3 bg-slate-900 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-sm"
+                      className="w-full px-3.5 py-2.5 sm:py-3 bg-zinc-900 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-xs sm:text-sm"
                     />
                     {generateType === 'frontend' && showFrontendDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl mt-1 max-h-48 overflow-y-auto z-30 shadow-2xl">
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
                         {frontendFrameworks
                           .filter((fw) => fw.toLowerCase().includes(searchFrontend.toLowerCase()))
                           .map((fw) => (
@@ -722,7 +903,7 @@ export default function Home() {
                                 setSearchFrontend(fw);
                                 setShowFrontendDropdown(false);
                               }}
-                              className="px-4 py-2.5 hover:bg-indigo-600/30 cursor-pointer text-slate-200 text-sm border-b border-slate-800/50 last:border-0"
+                              className="px-4 py-3 hover:bg-amber-500/20 cursor-pointer text-zinc-200 text-xs sm:text-sm border-b border-zinc-800/50 last:border-0"
                             >
                               {fw}
                             </div>
@@ -730,7 +911,7 @@ export default function Home() {
                       </div>
                     )}
                     {generateType === 'backend' && showBackendDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl mt-1 max-h-48 overflow-y-auto z-30 shadow-2xl">
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
                         {backendFrameworks
                           .filter((bw) => bw.toLowerCase().includes(searchBackend.toLowerCase()))
                           .map((bw) => (
@@ -741,7 +922,7 @@ export default function Home() {
                                 setSearchBackend(bw);
                                 setShowBackendDropdown(false);
                               }}
-                              className="px-4 py-2.5 hover:bg-indigo-600/30 cursor-pointer text-slate-200 text-sm border-b border-slate-800/50 last:border-0"
+                              className="px-4 py-3 hover:bg-amber-500/20 cursor-pointer text-zinc-200 text-xs sm:text-sm border-b border-zinc-800/50 last:border-0"
                             >
                               {bw}
                             </div>
@@ -759,56 +940,52 @@ export default function Home() {
             <button
               type="button"
               onClick={() => handleGo()}
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base sm:text-lg rounded-2xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/30 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
+              className="w-full py-3.5 sm:py-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-sm sm:text-lg rounded-2xl shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2.5 sm:gap-3 cursor-pointer"
             >
               <span>Execute Code Transformation</span>
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-black font-extrabold" />
             </button>
-            <p className="text-center text-xs text-slate-400 mt-3 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Real-time SignalR progress tracking will monitor the transformation.</span>
-            </p>
           </div>
         </div>
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-16 px-4 border-t border-slate-800/80 bg-slate-950/80">
+      <section id="how-it-works" className="py-16 px-4 border-t border-zinc-900 bg-black/90">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-white mb-3">How TranspileAI Works</h2>
-            <p className="text-slate-400 max-w-xl mx-auto text-sm sm:text-base">
+            <p className="text-zinc-400 max-w-xl mx-auto text-sm sm:text-base">
               Automated code transpilation and scaffolding in 3 simple steps.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="glass-panel rounded-2xl p-6 border border-slate-800/80 relative">
-              <div className="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-4 font-bold text-lg border border-indigo-500/20">
+            <div className="glass-panel rounded-2xl p-6 border border-zinc-800/80 relative">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4 font-bold text-lg border border-amber-500/20">
                 01
               </div>
               <h3 className="text-lg font-bold text-white mb-2">1. Connect Repo & Extract</h3>
-              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+              <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
                 Provide your GitHub repository link. Easily extract and inspect the directory structure before transpilation starts.
               </p>
             </div>
 
-            <div className="glass-panel rounded-2xl p-6 border border-slate-800/80 relative">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4 font-bold text-lg border border-purple-500/20">
+            <div className="glass-panel rounded-2xl p-6 border border-zinc-800/80 relative">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4 font-bold text-lg border border-amber-500/20">
                 02
               </div>
               <h3 className="text-lg font-bold text-white mb-2">2. Transpilation Engine</h3>
-              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+              <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
                 The backend engine restructures syntax, maps dependencies, and streams real-time progress via SignalR WebSockets.
               </p>
             </div>
 
-            <div className="glass-panel rounded-2xl p-6 border border-slate-800/80 relative">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4 font-bold text-lg border border-emerald-500/20">
+            <div className="glass-panel rounded-2xl p-6 border border-zinc-800/80 relative">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4 font-bold text-lg border border-amber-500/20">
                 03
               </div>
               <h3 className="text-lg font-bold text-white mb-2">3. Download ZIP Archive</h3>
-              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+              <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
                 Preview the transformed folder hierarchy and download your complete production-ready project as a ZIP package.
               </p>
             </div>
@@ -817,10 +994,10 @@ export default function Home() {
       </section>
 
       {/* Supported Tech Grid */}
-      <section className="py-16 px-4 border-t border-slate-800/80">
+      <section className="py-16 px-4 border-t border-zinc-900">
         <div className="max-w-5xl mx-auto text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Supported Ecosystems</h2>
-          <p className="text-slate-400 text-xs sm:text-sm mb-8">
+          <p className="text-zinc-400 text-xs sm:text-sm mb-8">
             Transpile across modern frontend frameworks, backend microservices, and mobile platforms.
           </p>
 
@@ -828,7 +1005,7 @@ export default function Home() {
             {['React', 'Next.js', 'Vue.js', 'Nuxt.js', 'SvelteKit', 'Angular', 'Remix', 'Astro', 'Express', 'FastAPI', 'Django', 'Spring Boot', 'Laravel', 'Gin', 'Actix', '.NET Core', 'React Native', 'Flutter', 'Tailwind CSS'].map((tech) => (
               <span
                 key={tech}
-                className="px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 text-xs font-medium hover:border-indigo-500/50 hover:text-white transition-all cursor-default"
+                className="px-3.5 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs font-medium hover:border-amber-500/50 hover:text-amber-300 transition-all cursor-default"
               >
                 {tech}
               </span>
@@ -838,14 +1015,14 @@ export default function Home() {
       </section>
 
       {/* Guide & FAQ Accordion Section */}
-      <section id="faqs" className="py-16 px-4 border-t border-slate-800/80 bg-slate-950/80">
+      <section id="faqs" className="py-16 px-4 border-t border-zinc-900 bg-black/90">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
-              <HelpCircle className="w-6 h-6 text-indigo-400" />
+              <HelpCircle className="w-6 h-6 text-amber-400" />
               Frequently Asked Questions
             </h2>
-            <p className="text-slate-400 text-xs sm:text-sm">Quick guidance on common features and repository handling.</p>
+            <p className="text-zinc-400 text-xs sm:text-sm">Quick guidance on common features and repository handling.</p>
           </div>
 
           <div className="space-y-4">
@@ -869,22 +1046,22 @@ export default function Home() {
             ].map((faq, index) => (
               <div
                 key={index}
-                className="glass-panel rounded-2xl border border-slate-800/80 overflow-hidden transition-all"
+                className="glass-panel rounded-2xl border border-zinc-800/80 overflow-hidden transition-all"
               >
                 <button
                   type="button"
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full px-6 py-4 text-left flex items-center justify-between text-white font-medium text-sm sm:text-base hover:bg-slate-900/50 transition-colors"
+                  className="w-full px-6 py-4 text-left flex items-center justify-between text-white font-medium text-sm sm:text-base hover:bg-zinc-900/60 transition-colors"
                 >
                   <span>{faq.q}</span>
                   {openFaq === index ? (
-                    <ChevronUp className="w-5 h-5 text-indigo-400 shrink-0" />
+                    <ChevronUp className="w-5 h-5 text-amber-400 shrink-0" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-slate-400 shrink-0" />
+                    <ChevronDown className="w-5 h-5 text-zinc-400 shrink-0" />
                   )}
                 </button>
                 {openFaq === index && (
-                  <div className="px-6 pb-4 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/40 pt-3">
+                  <div className="px-6 pb-4 text-xs sm:text-sm text-zinc-400 leading-relaxed border-t border-zinc-800/40 pt-3">
                     {faq.a}
                   </div>
                 )}
@@ -894,11 +1071,13 @@ export default function Home() {
         </div>
       </section>
 
+
+
       {/* Footer */}
-      <footer className="py-8 px-4 border-t border-slate-800/80 text-center text-xs text-slate-500">
+      <footer className="py-8 px-4 bg-black border-t border-zinc-800 text-center text-xs text-zinc-500">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-300">TranspileAI Engine</span>
+            <span className="font-bold text-zinc-300">TranspileAI Engine</span>
             <span>— Codebase & Tech Stack Converter</span>
           </div>
           <div>
@@ -906,6 +1085,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
 
       {/* Modals */}
       <ProgressModal
@@ -947,7 +1127,54 @@ export default function Home() {
         }}
       />
 
-      <Toaster position="bottom-right" />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          className: 'toast-stylish',
+          style: {
+            background: 'rgba(9, 9, 11, 0.94)',
+            color: '#f4f4f5',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            boxShadow: '0 20px 45px rgba(0, 0, 0, 0.9), 0 0 30px rgba(245, 158, 11, 0.12)',
+            borderRadius: '16px',
+            padding: '12px 18px',
+            fontSize: '13px',
+            fontWeight: 500,
+          },
+          success: {
+            iconTheme: {
+              primary: '#f59e0b',
+              secondary: '#000000',
+            },
+            style: {
+              border: '1px solid rgba(245, 158, 11, 0.45)',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#f43f5e',
+              secondary: '#ffffff',
+            },
+            style: {
+              border: '1px solid rgba(244, 63, 94, 0.45)',
+              boxShadow: '0 20px 45px rgba(0, 0, 0, 0.9), 0 0 30px rgba(244, 63, 94, 0.18)',
+            },
+          },
+          loading: {
+            iconTheme: {
+              primary: '#fbbf24',
+              secondary: '#000000',
+            },
+            style: {
+              border: '1px solid rgba(251, 191, 36, 0.4)',
+            },
+          },
+        }}
+      />
     </div>
   );
 }
+

@@ -48,8 +48,9 @@ function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.React
         const isLast = index === nodes.length - 1;
         const connector = isLast ? '└─ ' : '├─ ';
         const nextPrefix = prefix + (isLast ? '   ' : '│  ');
+        const itemKey = `${prefix}-${node.name}-${index}`;
         return (
-          <div key={node.name} className="py-0.5">
+          <div key={itemKey} className="py-0.5">
             <span className="text-slate-500">{prefix + connector}</span>
             <span className="text-amber-400 mr-1">📂</span>
             <span className="text-slate-100 font-medium">{node.name}</span>
@@ -60,6 +61,7 @@ function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.React
     </pre>
   );
 }
+
 
 export default function DownloadModal({ isOpen, projectData, onDownload, onPushToGithub, onClose, onResetProcess }: DownloadModalProps) {
   const [tab, setTab] = useState<'download' | 'github'>('download');
@@ -125,46 +127,46 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-950/90 backdrop-blur-xl rounded-3xl max-w-xl w-full border border-white/10 shadow-2xl shadow-indigo-500/10 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="bg-zinc-950/95 backdrop-blur-xl rounded-3xl max-w-xl w-full border border-amber-500/25 shadow-2xl shadow-amber-500/10 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header with Title & Mode Switcher */}
-        <div className="p-6 pb-5 border-b border-white/10 bg-slate-950/80">
+        <div className="p-6 pb-5 border-b border-zinc-800 bg-black/80">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-purple-600/30">
-                <Sparkles className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-500 flex items-center justify-center text-black font-extrabold shadow-lg shadow-amber-500/30">
+                <Sparkles className="w-5 h-5 text-black" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white tracking-tight">Project Ready for Export</h3>
-                <p className="text-xs text-slate-400">Download locally as a ZIP or push directly to GitHub</p>
+                <p className="text-xs text-zinc-400">Download locally as a ZIP or push directly to GitHub</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition-colors"
+              className="text-zinc-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
             >
               ✕
             </button>
           </div>
 
           {/* Navigation Tab Switcher */}
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-white/10">
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-zinc-900/90 rounded-2xl border border-zinc-800">
             <button
               onClick={() => setTab('download')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                 tab === 'download'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  ? 'bg-amber-500 text-black font-extrabold shadow-lg shadow-amber-500/30'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               }`}
             >
               <span>📁 Download ZIP File</span>
             </button>
             <button
               onClick={() => setTab('github')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer ${
                 tab === 'github'
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  ? 'bg-yellow-500 text-black font-extrabold shadow-lg shadow-yellow-500/30'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               }`}
             >
               <span>🐙 Push Direct to GitHub</span>
@@ -177,19 +179,19 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
           {tab === 'download' ? (
             /* ZIP Download Tab View */
             <div className="space-y-5">
-              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 text-xs text-indigo-300 flex items-start gap-3">
-                <FolderTree className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-4 text-xs text-amber-300 flex items-start gap-3">
+                <FolderTree className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold text-white">ZIP Package Built Successfully</span>
-                  <p className="mt-0.5 text-slate-300">
+                  <p className="mt-0.5 text-zinc-300">
                     Your transformed file structure is compressed and ready to download.
                   </p>
                 </div>
               </div>
 
               {/* Folder Tree Display */}
-              <div className="bg-slate-900/90 rounded-2xl p-4 border border-white/10 max-h-60 overflow-y-auto">
-                <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10 text-xs font-semibold text-slate-400">
+              <div className="bg-zinc-950/90 rounded-2xl p-3.5 sm:p-4 border border-zinc-800 max-h-60 overflow-y-auto overflow-x-auto custom-scrollbar touch-scroll">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-zinc-800 text-xs font-semibold text-zinc-400">
                   <span>Generated Files & Folders</span>
                   <span>{projectData.folders.length} root items</span>
                 </div>
@@ -197,40 +199,41 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
               </div>
 
               {/* Download Tab Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row gap-2.5 sm:gap-3">
                 <button
                   onClick={onClose}
-                  className="py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                  className="py-3 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs border border-zinc-700 transition-colors cursor-pointer"
                 >
                   Close
                 </button>
                 {onResetProcess && (
                   <button
                     onClick={onResetProcess}
-                    className="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white font-semibold text-xs border border-slate-700 hover:border-indigo-500/30 transition-all flex items-center justify-center gap-2"
+                    className="py-3 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 font-semibold text-xs border border-zinc-800 hover:border-amber-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
                   >
-                    <RotateCcw className="w-4 h-4 text-indigo-400" />
+                    <RotateCcw className="w-4 h-4 text-amber-400" />
                     <span>New Process</span>
                   </button>
                 )}
                 <button
                   onClick={handleDownload}
                   disabled={isDownloading}
-                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 hover:scale-[1.02] active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:from-amber-400 hover:to-yellow-300 active:scale-[0.98] text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 cursor-pointer"
                 >
                   {isDownloading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <RefreshCw className="w-4 h-4 animate-spin text-black" />
                       Downloading...
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <Download className="w-4 h-4 text-black" />
                       Download ZIP Archive
                     </>
                   )}
                 </button>
               </div>
+
             </div>
           ) : (
             /* GitHub Push Tab View */
@@ -238,14 +241,14 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
               {pushResult ? (
                 /* Success View */
                 <div className="space-y-6 text-center py-2">
-                  <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                  <div className="w-16 h-16 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
                     <Check className="w-8 h-8" />
                   </div>
                   <div>
                     <h4 className="text-xl font-extrabold text-white mb-1">
                       GitHub Repository Created Successfully!
                     </h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    <p className="text-xs text-zinc-400 max-w-sm mx-auto">
                       Your codebase has been pushed directly to your GitHub account.
                     </p>
                   </div>
@@ -256,31 +259,31 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                       href={pushResult.repoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 hover:scale-[1.02] active:scale-[0.98] text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all"
+                      className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:from-amber-400 hover:to-yellow-300 active:scale-[0.98] text-black font-extrabold text-sm shadow-xl shadow-amber-500/25 transition-all"
                     >
                       <span>Open Repository on GitHub 🚀</span>
-                      <ExternalLink className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4 text-black" />
                     </a>
                   </div>
 
                   {/* Interactive Clone Code Box */}
-                  <div className="bg-slate-900/90 rounded-2xl p-4 border border-white/10 text-left space-y-2">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="bg-zinc-900/90 rounded-2xl p-4 border border-zinc-800 text-left space-y-2">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block">
                       Clone Command
                     </span>
-                    <div className="flex items-center justify-between gap-2 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-white/10 font-mono text-xs text-indigo-300">
+                    <div className="flex items-center justify-between gap-2 bg-black px-3.5 py-2.5 rounded-xl border border-zinc-800 font-mono text-xs text-amber-400">
                       <span className="truncate">
                         git clone {pushResult.cloneUrl || (pushResult.repoUrl ? `${pushResult.repoUrl}.git` : `https://github.com/user/${repoName}.git`)}
                       </span>
                       <button
                         onClick={copyCloneCommand}
                         type="button"
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors shrink-0 flex items-center gap-1 text-[11px]"
+                        className="p-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white transition-colors shrink-0 flex items-center gap-1 text-[11px] cursor-pointer"
                       >
                         {copied ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-emerald-400 font-semibold">Copied!</span>
+                            <Check className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="text-amber-400 font-semibold">Copied!</span>
                           </>
                         ) : (
                           <>
@@ -296,16 +299,16 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                   <div className="pt-2 flex gap-3">
                     <button
                       onClick={onClose}
-                      className="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                      className="flex-1 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs border border-zinc-700 transition-colors cursor-pointer"
                     >
                       Close Window
                     </button>
                     {onResetProcess && (
                       <button
                         onClick={onResetProcess}
-                        className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25"
+                        className="flex-1 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
                       >
-                        <RotateCcw className="w-4 h-4" />
+                        <RotateCcw className="w-4 h-4 text-black" />
                         <span>Start New Process</span>
                       </button>
                     )}
@@ -323,7 +326,7 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
 
                   {/* Repository Name Input */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
                       Repository Name <span className="text-rose-400">*</span>
                     </label>
                     <input
@@ -332,25 +335,25 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                       value={repoName}
                       onChange={(e) => setRepoName(e.target.value)}
                       placeholder="my-converted-app"
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
                     />
                   </div>
 
                   {/* Repository Visibility Switcher */}
-                  <div className="flex items-center justify-between bg-slate-900/90 p-3.5 rounded-2xl border border-white/10">
+                  <div className="flex items-center justify-between bg-zinc-900/90 p-3.5 rounded-2xl border border-zinc-800">
                     <div className="flex items-center gap-2.5">
-                      <Shield className="w-4 h-4 text-indigo-400" />
+                      <Shield className="w-4 h-4 text-amber-400" />
                       <div>
-                        <span className="text-xs font-semibold text-slate-200 block">Repository Visibility</span>
-                        <span className="text-[11px] text-slate-400">Choose public or private visibility</span>
+                        <span className="text-xs font-semibold text-zinc-200 block">Repository Visibility</span>
+                        <span className="text-[11px] text-zinc-400">Choose public or private visibility</span>
                       </div>
                     </div>
-                    <div className="flex gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                    <div className="flex gap-1 p-1 bg-black rounded-xl border border-zinc-800">
                       <button
                         type="button"
                         onClick={() => setIsPrivate(false)}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                          !isPrivate ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          !isPrivate ? 'bg-amber-500 text-black font-bold shadow-sm' : 'text-zinc-400 hover:text-white'
                         }`}
                       >
                         Public
@@ -358,8 +361,8 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                       <button
                         type="button"
                         onClick={() => setIsPrivate(true)}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                          isPrivate ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          isPrivate ? 'bg-amber-500 text-black font-bold shadow-sm' : 'text-zinc-400 hover:text-white'
                         }`}
                       >
                         Private
@@ -370,13 +373,13 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                   {/* GitHub Personal Access Token (PAT) Input */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-semibold text-slate-300">
+                      <label className="text-xs font-semibold text-zinc-300">
                         GitHub Personal Access Token (PAT) <span className="text-rose-400">*</span>
                       </label>
                       <button
                         type="button"
                         onClick={() => setShowToken(!showToken)}
-                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+                        className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 cursor-pointer"
                       >
                         {showToken ? (
                           <>
@@ -397,24 +400,24 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                       value={githubToken}
                       onChange={(e) => setGithubToken(e.target.value)}
                       placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-zinc-400 mt-1">
                       Requires 'repo' scope
                     </p>
                   </div>
 
                   {/* Description Input */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Description <span className="text-slate-500 font-normal">(Optional)</span>
+                    <label className="block text-xs font-semibold text-zinc-300 mb-1.5">
+                      Description <span className="text-zinc-500 font-normal">(Optional)</span>
                     </label>
                     <input
                       type="text"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Repository description"
-                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                      className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 transition-colors"
                     />
                   </div>
 
@@ -423,23 +426,23 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                     <button
                       type="button"
                       onClick={onClose}
-                      className="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                      className="flex-1 py-3 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-semibold text-xs border border-zinc-700 transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isPushing}
-                      className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 hover:scale-[1.02] active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
+                      className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 active:scale-[0.98] text-black font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 cursor-pointer"
                     >
                       {isPushing ? (
                         <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <RefreshCw className="w-4 h-4 animate-spin text-black" />
                           Pushing to GitHub...
                         </>
                       ) : (
                         <>
-                          <Github className="w-4 h-4" />
+                          <Github className="w-4 h-4 text-black" />
                           Create & Push to GitHub
                         </>
                       )}

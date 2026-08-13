@@ -55,20 +55,94 @@ interface ProgressData {
   message: string;
 }
 
+export interface DetectedTech {
+  name: string;
+  category: 'frontend' | 'backend' | 'fullstack' | 'general';
+  confidence: 'high' | 'medium' | 'low';
+  summary: string;
+}
+
+export function detectTechFromTree(rootNode: any): DetectedTech | null {
+  if (!rootNode) return null;
+
+  const allFileNames: string[] = [];
+
+  function collectNames(node: any) {
+    if (!node) return;
+    if (node.name) allFileNames.push(node.name.toLowerCase());
+    if (node.children && Array.isArray(node.children)) {
+      node.children.forEach(collectNames);
+    }
+  }
+
+  collectNames(rootNode);
+
+  if (allFileNames.some(f => f === 'next.config.js' || f === 'next.config.mjs' || f === 'next.config.ts')) {
+    return { name: 'Next.js', category: 'frontend', confidence: 'high', summary: 'Next.js Project' };
+  }
+  if (allFileNames.some(f => f === 'nuxt.config.js' || f === 'nuxt.config.ts')) {
+    return { name: 'Nuxt.js', category: 'frontend', confidence: 'high', summary: 'Nuxt.js Project' };
+  }
+  if (allFileNames.some(f => f === 'svelte.config.js')) {
+    return { name: 'SvelteKit', category: 'frontend', confidence: 'high', summary: 'SvelteKit Project' };
+  }
+  if (allFileNames.some(f => f === 'pom.xml' || f.endsWith('.gradle') || f.endsWith('.gradle.kts'))) {
+    return { name: 'Spring Boot', category: 'backend', confidence: 'high', summary: 'Spring Boot Backend' };
+  }
+  if (allFileNames.some(f => f.endsWith('.csproj') || f.endsWith('.sln'))) {
+    return { name: '.NET / ASP.NET Core', category: 'backend', confidence: 'high', summary: '.NET / ASP.NET Core Backend' };
+  }
+  if (allFileNames.some(f => f === 'requirements.txt' || f === 'pyproject.toml' || f === 'pipfile')) {
+    return { name: 'FastAPI', category: 'backend', confidence: 'medium', summary: 'FastAPI Backend' };
+  }
+  if (allFileNames.some(f => f === 'composer.json')) {
+    return { name: 'Laravel', category: 'backend', confidence: 'medium', summary: 'Laravel Backend' };
+  }
+  if (allFileNames.some(f => f === 'gemfile')) {
+    return { name: 'Ruby on Rails', category: 'backend', confidence: 'high', summary: 'Ruby on Rails Backend' };
+  }
+  if (allFileNames.some(f => f === 'go.mod')) {
+    return { name: 'Gin', category: 'backend', confidence: 'medium', summary: 'Go Backend' };
+  }
+  if (allFileNames.some(f => f.endsWith('.cs'))) {
+    return { name: '.NET / ASP.NET Core', category: 'backend', confidence: 'medium', summary: '.NET / ASP.NET Core Backend' };
+  }
+  if (allFileNames.some(f => f.endsWith('.java') || f.endsWith('.kt'))) {
+    return { name: 'Spring Boot', category: 'backend', confidence: 'medium', summary: 'Spring Boot Backend' };
+  }
+  if (allFileNames.some(f => f.endsWith('.py'))) {
+    return { name: 'FastAPI', category: 'backend', confidence: 'medium', summary: 'Python Backend' };
+  }
+
+  return null;
+}
+
 class ProjectService {
   private connection: signalR.HubConnection | null = null;
   private connectionId: string | null = null;
   private progressCallback: ((message: string, percentage: number) => void) | null = null;
 
   // Initialize SignalR connection
-  async initializeProgressTracking(onProgress: (message: string, percentage: number) => void): Promise<string> {
+  async initializeProgressTracking(onProgress: (message: string, percentage: number) => void): Promise<string | null> {
     this.progressCallback = onProgress;
 
+    const hubUrl = `${BACKEND_URL || ''}/progressHub`;
+
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${BACKEND_URL}/progressHub`)
-      .withAutomaticReconnect()
+      .withUrl(hubUrl, {
+        skipNegotiation: false,
+        transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
+      })
+      .withAutomaticReconnect({
+        nextRetryDelayInMilliseconds: (retryContext) => {
+          if (retryContext.previousRetryCount < 5) {
+            return 2000;
+          }
+          return 5000;
+        }
+      })
       .withHubProtocol(new signalR.JsonHubProtocol())
-      .configureLogging(signalR.LogLevel.Information)
+      .configureLogging(signalR.LogLevel.Warning)
       .build();
 
     this.connection.on('ReceiveProgress', (message: string, percentage: number) => {
@@ -80,13 +154,15 @@ class ProjectService {
     try {
       await this.connection.start();
       this.connectionId = this.connection.connectionId;
-      console.log('SignalR connection established:', this.connectionId);
-      return this.connectionId!;
+      console.log('SignalR connection established successfully:', this.connectionId);
+      return this.connectionId;
     } catch (err) {
-      console.error('Failed to start SignalR connection:', err);
-      throw new Error('Failed to establish real-time connection. Please refresh the page and try again.');
+      console.warn('SignalR negotiation skipped or backend server initializing:', err);
+      this.connectionId = null;
+      return null;
     }
   }
+
 
   // Process API - Main endpoint for cloning, conversion, generation
   async processProject({ githubUrl, mode, type, targetFramework, fromFramework, username, password }: ProcessProjectParams): Promise<ProcessProjectResponse> {

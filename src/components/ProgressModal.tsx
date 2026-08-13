@@ -17,8 +17,9 @@ export default function ProgressModal({ isOpen, progress, onClose }: ProgressMod
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="progress-wrapper">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+      <div className="progress-wrapper max-w-md w-full">
+
         <div className="progress-title">File Conversion in Progress</div>
 
         <div className="progress-transfer">
@@ -42,13 +43,16 @@ export default function ProgressModal({ isOpen, progress, onClose }: ProgressMod
 
         {progress && progress.percentage >= 100 && (
           <div className="progress-completion">
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-white text-xl">✓</span>
+            <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg shadow-amber-500/30">
+              <span className="text-black font-extrabold text-xl">✓</span>
             </div>
-            <p className="text-green-300 text-sm">Process completed successfully!</p>
+            <p className="text-amber-400 font-bold text-sm">Process completed successfully!</p>
           </div>
         )}
       </div>
     </div>
+
+
+
   );
 }

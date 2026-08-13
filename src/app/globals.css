@@ -70,11 +70,11 @@ body {
   width: 70px;
   height: 70px;
   fill: none;
-  stroke: #f97316;
+  stroke: #f59e0b;
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 6px 16px rgba(245, 158, 11, 0.45));
 }
 
 /* Folder */
@@ -82,12 +82,12 @@ body {
   width: 90px;
   height: 70px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #fbbf24, #f97316);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   position: relative;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.25);
 }
 
 .extraction-folder::before {
@@ -98,7 +98,7 @@ body {
   width: 48px;
   height: 22px;
   border-radius: 10px 10px 0 0;
-  background: #facc15;
+  background: #fde68a;
 }
 
 /* Files */
@@ -109,11 +109,12 @@ body {
   width: 32px;
   height: 40px;
   border-radius: 6px;
-  background: #e5e7eb;
+  background: #18181b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
   transform: translate(-40px, -50%);
   opacity: 0;
   animation: extraction-fly 4s linear infinite;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.7);
 }
 
 .extraction-file::before {
@@ -123,7 +124,7 @@ body {
   right: 0;
   width: 35%;
   height: 35%;
-  background: #cbd5f5;
+  background: #f59e0b;
   border-bottom-left-radius: 8px;
 }
 
@@ -135,8 +136,8 @@ body {
   width: 70%;
   height: 10px;
   border-radius: 999px;
-  background: #9ca3af;
-  opacity: .7;
+  background: #fde68a;
+  opacity: .9;
 }
 
 /* Staggered */
@@ -170,20 +171,20 @@ body {
   margin-top: 10px;
   text-align: center;
   font-size: .8rem;
-  color: #9ca3af;
+  color: #a1a1aa;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
 
 /* Progress Modal Styles */
 .progress-wrapper {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(9, 9, 11, 0.95);
   backdrop-filter: blur(20px);
   padding: 20px 25px;
   border-radius: 20px;
-  box-shadow: 0 20px 45px rgba(0,0,0,0.6);
-  color: #e5e7eb;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 45px rgba(0,0,0,0.9);
+  color: #f4f4f5;
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 @media (min-width: 768px) {
@@ -212,12 +213,12 @@ body {
   width: 90px;
   height: 70px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #fbbf24, #f97316);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   position: relative;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.25);
 }
 
 .progress-folder::before {
@@ -228,7 +229,7 @@ body {
   width: 48px;
   height: 22px;
   border-radius: 10px 10px 0 0;
-  background: #facc15;
+  background: #fde68a;
 }
 
 /* Files */
@@ -239,11 +240,12 @@ body {
   width: 32px;
   height: 40px;
   border-radius: 6px;
-  background: #e5e7eb;
+  background: #18181b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
   transform: translate(-40px, -50%);
   opacity: 0;
   animation: progress-fly 4s linear infinite;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.7);
 }
 
 .progress-file::before {
@@ -253,7 +255,7 @@ body {
   right: 0;
   width: 35%;
   height: 35%;
-  background: #cbd5f5;
+  background: #f59e0b;
   border-bottom-left-radius: 8px;
 }
 
@@ -265,8 +267,8 @@ body {
   width: 70%;
   height: 10px;
   border-radius: 999px;
-  background: #9ca3af;
-  opacity: .7;
+  background: #fde68a;
+  opacity: .9;
 }
 
 /* Staggered */
@@ -300,7 +302,7 @@ body {
   margin-top: 10px;
   text-align: center;
   font-size: .8rem;
-  color: #9ca3af;
+  color: #a1a1aa;
   letter-spacing: .08em;
   text-transform: uppercase;
 }
@@ -312,15 +314,15 @@ body {
 
 /* Rich Developer Glass Cards */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(9, 9, 11, 0.90);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.88), 0 0 35px rgba(245, 158, 11, 0.08);
 }
 
 .subtle-grid {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(245, 158, 11, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -328,6 +330,135 @@ body {
   font-family: var(--font-geist-mono), monospace;
   letter-spacing: -0.02em;
 }
+
+/* Responsive Modal Transfer Animations for Mobile */
+@media (max-width: 640px) {
+  .extraction-transfer, .progress-transfer {
+    gap: 28px;
+    padding: 15px 0;
+    justify-content: center;
+  }
+
+  .extraction-folder, .progress-folder {
+    width: 64px;
+    height: 52px;
+  }
+
+  .extraction-folder::before, .progress-folder::before {
+    top: -14px;
+    left: 8px;
+    width: 34px;
+    height: 16px;
+  }
+
+  .extraction-git-icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .extraction-git-icon svg {
+    width: 48px;
+    height: 48px;
+  }
+
+  .extraction-file, .progress-file {
+    width: 24px;
+    height: 30px;
+    animation-name: extraction-fly-mobile;
+  }
+
+  .progress-file {
+    animation-name: progress-fly-mobile;
+  }
+}
+
+@keyframes extraction-fly-mobile {
+  0% {
+    transform: translate(20px, -50%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(105px, -50%);
+  }
+  90% {
+    transform: translate(105px, -50%);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(105px, -50%);
+    opacity: 0;
+  }
+}
+
+@keyframes progress-fly-mobile {
+  0% {
+    transform: translate(20px, -50%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(105px, -50%);
+  }
+  90% {
+    transform: translate(105px, -50%);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(105px, -50%);
+    opacity: 0;
+  }
+}
+
+/* Custom smooth scrollbar for code containers */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(9, 9, 11, 0.8);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.45);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 191, 36, 0.85);
+}
+
+/* Touch friendly scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Stylish Toast Notification Glassmorphism */
+[data-react-hot-toast] {
+  letter-spacing: -0.01em;
+}
+
+.toast-stylish {
+  background: rgba(9, 9, 11, 0.94) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.9), 0 0 30px rgba(245, 158, 11, 0.12) !important;
+  color: #f4f4f5 !important;
+  border-radius: 16px !important;
+  padding: 12px 18px !important;
+  font-size: 13px !important;
+}
+
+
+
+
+
 
 
 
