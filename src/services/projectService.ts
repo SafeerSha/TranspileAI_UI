@@ -109,15 +109,22 @@ class ProjectService {
 
     if (!response.ok) {
       let errorMessage = `Process failed: ${response.statusText}`;
+      if (response.status === 401) {
+        const authError = new Error('Authentication required for this repository');
+        (authError as any).status = 401;
+        throw authError;
+      }
       if (response.status === 400) {
         try {
           const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
+          errorMessage = errorData.error || errorData.message || errorMessage;
         } catch {
           // If parsing fails, use default message
         }
       }
-      throw new Error(errorMessage);
+      const error = new Error(errorMessage);
+      (error as any).status = response.status;
+      throw error;
     }
 
     return await response.json();

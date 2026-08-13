@@ -54,7 +54,7 @@ export default function Home() {
     username: '',
     password: ''
   });
-  const [pendingOperation, setPendingOperation] = useState<(() => void) | null>(null);
+  const [pendingOperation, setPendingOperation] = useState<((u?: string, p?: string) => void) | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const [frontendFrameworks] = useState<string[]>([
@@ -101,32 +101,31 @@ export default function Home() {
     }
   }, [progress]);
 
-  const handleExtract = async () => {
+  const handleExtract = async (customUsername?: string, customPassword?: string) => {
     if (!inputText.trim()) {
       toast.error('Please enter a GitHub URL first');
       return;
     }
     setShowExtractionModal(true);
 
-    const extractPromise = projectService.extractProjectStructure(inputText.trim(), credentials.username, credentials.password);
+    const user = typeof customUsername === 'string' ? customUsername : credentials.username;
+    const pass = typeof customPassword === 'string' ? customPassword : credentials.password;
 
-    setTimeout(async () => {
-      try {
-        const data = await extractPromise;
-        setExtractedStructure(data.structure);
-        setShowExtractionModal(false);
-        setShowStructureModal(true);
-      } catch (err: any) {
-        if (err.message && err.message.includes('Authentication required')) {
-          setPendingOperation(() => handleExtract);
-          setShowCredentialsModal(true);
-        } else {
-          toast.error('Failed to extract project structure. Please try again.');
-          console.error('Extract error:', err);
-        }
-        setShowExtractionModal(false);
+    try {
+      const data = await projectService.extractProjectStructure(inputText.trim(), user, pass);
+      setExtractedStructure(data.structure);
+      setShowExtractionModal(false);
+      setShowStructureModal(true);
+    } catch (err: any) {
+      setShowExtractionModal(false);
+      if (err.status === 401 || (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('401')))) {
+        setPendingOperation(() => (u?: string, p?: string) => handleExtract(u, p));
+        setShowCredentialsModal(true);
+      } else {
+        toast.error(err.message || 'Failed to extract project structure. Please try again.');
+        console.error('Extract error:', err);
       }
-    }, 10000);
+    }
   };
 
   const handleDownload = async () => {
@@ -156,10 +155,14 @@ export default function Home() {
     });
   };
 
-  const handleGo = async () => {
+  const handleGo = async (customUsername?: string, customPassword?: string) => {
     const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
     if (mode === 'conversion' && !githubUrlRegex.test(inputText.trim())) {
       toast.error('Please enter a valid GitHub URL (e.g., https://github.com/username/repo)');
+      return;
+    }
+    if (mode === 'generate' && generateType === 'backend' && !githubUrlRegex.test(inputText.trim())) {
+      toast.error('Please enter a valid GitHub URL for your frontend codebase');
       return;
     }
     if (mode === 'conversion' && !fromFramework) {
@@ -170,17 +173,21 @@ export default function Home() {
       toast.error('Please select a Target Framework');
       return;
     }
+
+    const user = typeof customUsername === 'string' ? customUsername : credentials.username;
+    const pass = typeof customPassword === 'string' ? customPassword : credentials.password;
+
     setProgress({ message: 'Starting process...', percentage: 0 });
     setShowModal(true);
     try {
       const params = {
-        githubUrl: mode === 'conversion' ? inputText : undefined,
+        githubUrl: (mode === 'conversion' || (mode === 'generate' && generateType === 'backend')) ? inputText : undefined,
         mode,
         type: mode === 'generate' ? generateType : undefined,
         targetFramework: selectedFramework.toLowerCase(),
         fromFramework: mode === 'conversion' ? fromFramework.toLowerCase() : undefined,
-        username: credentials.username || undefined,
-        password: credentials.password || undefined,
+        username: user || undefined,
+        password: pass || undefined,
       };
       const data = await projectService.processProject(params);
 
@@ -192,14 +199,14 @@ export default function Home() {
       setProjectData(data);
     } catch (err: any) {
       console.error('API error:', err);
-
-      if (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('credentials'))) {
-        toast.error('Authentication failed. Please check your credentials and try again.');
-      } else {
-        toast.error('Failed to process request. Please try again.');
-      }
-
       setShowModal(false);
+
+      if (err.status === 401 || (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('401')))) {
+        setPendingOperation(() => (u?: string, p?: string) => handleGo(u, p));
+        setShowCredentialsModal(true);
+      } else {
+        toast.error(err.message || 'Failed to process request. Please try again.');
+      }
     }
   };
 
@@ -331,7 +338,7 @@ export default function Home() {
               </div>
               <button
                 type="button"
-                onClick={handleExtract}
+                onClick={() => handleExtract()}
                 className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white font-medium rounded-xl border border-slate-700 hover:border-indigo-500/40 transition-all flex items-center justify-center gap-2 text-sm shrink-0"
               >
                 <FolderTree className="w-4 h-4 text-indigo-400" />
@@ -667,7 +674,7 @@ export default function Home() {
           <div>
             <button
               type="button"
-              onClick={handleGo}
+              onClick={() => handleGo()}
               className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base sm:text-lg rounded-2xl shadow-xl shadow-indigo-600/20 hover:shadow-indigo-600/30 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
             >
               <span>Execute Code Transformation</span>
@@ -849,7 +856,7 @@ export default function Home() {
           setCredentials({ username, password });
           setShowCredentialsModal(false);
           if (pendingOperation) {
-            pendingOperation();
+            pendingOperation(username, password);
             setPendingOperation(null);
           }
         }}
