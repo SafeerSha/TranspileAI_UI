@@ -24,6 +24,20 @@ interface GenerateBackendParams {
   targetDomain: string;
 }
 
+interface PushToGithubParams {
+  id: string;
+  repoName: string;
+  isPrivate: boolean;
+  description?: string;
+  githubToken: string;
+}
+
+interface PushToGithubResponse {
+  success: boolean;
+  repoUrl: string;
+  cloneUrl: string;
+}
+
 interface CreateBaseResponse {
   id: string;
   folders: string[];
@@ -250,6 +264,37 @@ class ProjectService {
     }
 
     return await response.blob();
+  }
+
+  // Push to GitHub
+  async pushToGithub({ id, repoName, isPrivate, description, githubToken }: PushToGithubParams): Promise<PushToGithubResponse> {
+    const response = await fetch(`${BACKEND_URL}/api/project/pushToGithub`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id,
+        repoName,
+        isPrivate,
+        description,
+        githubToken,
+        connectionId: this.connectionId
+      })
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Push to GitHub failed: ${response.statusText}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // Use default error message if JSON parse fails
+      }
+      throw new Error(errorMessage);
+    }
+
+    return await response.json();
   }
 }
 

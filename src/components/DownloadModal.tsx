@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { Download, Github, Check, Copy, ExternalLink, Shield, Sparkles, FolderTree, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 interface DownloadModalProps {
   isOpen: boolean;
   projectData: { projectId: string; folders: string[]; taskId: string } | null;
   onDownload: () => void;
+  onPushToGithub: (params: { repoName: string; isPrivate: boolean; description: string; githubToken: string }) => Promise<{ repoUrl: string; cloneUrl: string }>;
   onClose: () => void;
 }
 
@@ -16,15 +18,14 @@ function buildFolderTree(paths: string[]): FolderNode[] {
   const root: FolderNode[] = [];
   const map = new Map<string, FolderNode>();
 
-  // Sort paths to ensure parents come before children
-  const sortedPaths = paths.sort();
+  const sortedPaths = [...paths].sort();
 
   sortedPaths.forEach(path => {
     const parts = path.split('/');
     let currentPath = '';
     let parent: FolderNode[] = root;
 
-    parts.forEach((part, index) => {
+    parts.forEach(part => {
       currentPath += (currentPath ? '/' : '') + part;
       let node = map.get(currentPath);
       if (!node) {
@@ -41,14 +42,16 @@ function buildFolderTree(paths: string[]): FolderNode[] {
 
 function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.ReactElement {
   return (
-    <pre className="font-mono text-white whitespace-pre-wrap">
+    <pre className="font-mono text-slate-200 text-xs whitespace-pre-wrap leading-relaxed">
       {nodes.map((node, index) => {
         const isLast = index === nodes.length - 1;
-        const connector = isLast ? '└─' : '├─';
-        const nextPrefix = prefix + (isLast ? '  ' : '│ ');
+        const connector = isLast ? '└─ ' : '├─ ';
+        const nextPrefix = prefix + (isLast ? '   ' : '│  ');
         return (
-          <div key={node.name}>
-            {prefix + connector + '📂 ' + node.name}
+          <div key={node.name} className="py-0.5">
+            <span className="text-slate-500">{prefix + connector}</span>
+            <span className="text-amber-400 mr-1">📂</span>
+            <span className="text-slate-100 font-medium">{node.name}</span>
             {renderFolderTree(node.children, nextPrefix)}
           </div>
         );
@@ -57,8 +60,22 @@ function renderFolderTree(nodes: FolderNode[], prefix: string = ''): React.React
   );
 }
 
-export default function DownloadModal({ isOpen, projectData, onDownload, onClose }: DownloadModalProps) {
+export default function DownloadModal({ isOpen, projectData, onDownload, onPushToGithub, onClose }: DownloadModalProps) {
+  const [tab, setTab] = useState<'download' | 'github'>('download');
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // GitHub Push Form State
+  const [repoName, setRepoName] = useState('my-converted-app');
+  const [isPrivate, setIsPrivate] = useState(true);
+  const [description, setDescription] = useState('Generated with TranspileAI');
+  const [githubToken, setGithubToken] = useState('');
+  const [showToken, setShowToken] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<{ repoUrl: string; cloneUrl: string } | null>(null);
+  const [pushError, setPushError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  if (!isOpen || !projectData) return null;
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -69,41 +86,350 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onClose
     }
   };
 
-  if (!isOpen || !projectData) return null;
+  const handlePushToGithub = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!githubToken.trim()) {
+      setPushError('GitHub Personal Access Token (PAT) is required.');
+      return;
+    }
+    if (!repoName.trim()) {
+      setPushError('Repository Name is required.');
+      return;
+    }
+
+    setIsPushing(true);
+    setPushError(null);
+    setPushResult(null);
+
+    try {
+      const result = await onPushToGithub({
+        repoName: repoName.trim(),
+        isPrivate,
+        description: description.trim(),
+        githubToken: githubToken.trim()
+      });
+      setPushResult(result);
+    } catch (err: any) {
+      setPushError(err.message || 'Failed to push repository to GitHub.');
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
+  const copyCloneCommand = () => {
+    const cloneTarget = pushResult?.cloneUrl || (pushResult?.repoUrl ? `${pushResult.repoUrl}.git` : `https://github.com/user/${repoName}.git`);
+    navigator.clipboard.writeText(`git clone ${cloneTarget}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl max-w-lg w-full mx-4 border border-white/10">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-2xl">📁</span>
-          </div>
-
-          <h3 className="text-2xl font-bold text-white mb-4">Project Ready!</h3>
-          <p className="text-white text-lg mb-6">Your converted project is ready for download.</p>
-
-          <div className="bg-white/10 rounded-xl p-4 mb-6">
-            <h4 className="text-white font-semibold mb-3">Project Structure:</h4>
-            <div className="space-y-1">
-              {renderFolderTree(buildFolderTree(projectData.folders))}
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="bg-slate-950/90 backdrop-blur-xl rounded-3xl max-w-xl w-full border border-white/10 shadow-2xl shadow-indigo-500/10 overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header with Title & Mode Switcher */}
+        <div className="p-6 pb-5 border-b border-white/10 bg-slate-950/80">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-purple-600/30">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white tracking-tight">Project Ready for Export</h3>
+                <p className="text-xs text-slate-400">Download locally as a ZIP or push directly to GitHub</p>
+              </div>
             </div>
-          </div>
-
-          <div className="flex gap-4">
             <button
               onClick={onClose}
-              className="flex-1 py-3 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-all"
+              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition-colors"
             >
-              Cancel
-            </button>
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isDownloading ? 'Downloading...' : 'Download Now'}
+              ✕
             </button>
           </div>
+
+          {/* Navigation Tab Switcher */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-900/90 rounded-2xl border border-white/10">
+            <button
+              onClick={() => setTab('download')}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                tab === 'download'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              <span>📁 Download ZIP File</span>
+            </button>
+            <button
+              onClick={() => setTab('github')}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                tab === 'github'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              }`}
+            >
+              <span>🐙 Push Direct to GitHub</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+          {tab === 'download' ? (
+            /* ZIP Download Tab View */
+            <div className="space-y-5">
+              <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 text-xs text-indigo-300 flex items-start gap-3">
+                <FolderTree className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold text-white">ZIP Package Built Successfully</span>
+                  <p className="mt-0.5 text-slate-300">
+                    Your transformed file structure is compressed and ready to download.
+                  </p>
+                </div>
+              </div>
+
+              {/* Folder Tree Display */}
+              <div className="bg-slate-900/90 rounded-2xl p-4 border border-white/10 max-h-60 overflow-y-auto">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10 text-xs font-semibold text-slate-400">
+                  <span>Generated Files & Folders</span>
+                  <span>{projectData.folders.length} root items</span>
+                </div>
+                {renderFolderTree(buildFolderTree(projectData.folders))}
+              </div>
+
+              {/* Download Tab Buttons */}
+              <div className="pt-2 flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 hover:scale-[1.02] active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
+                >
+                  {isDownloading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Download ZIP Archive
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* GitHub Push Tab View */
+            <div>
+              {pushResult ? (
+                /* Success View */
+                <div className="space-y-6 text-center py-2">
+                  <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                    <Check className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-extrabold text-white mb-1">
+                      GitHub Repository Created Successfully!
+                    </h4>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Your codebase has been pushed directly to your GitHub account.
+                    </p>
+                  </div>
+
+                  {/* Open Repository Button */}
+                  <div>
+                    <a
+                      href={pushResult.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 hover:scale-[1.02] active:scale-[0.98] text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all"
+                    >
+                      <span>Open Repository on GitHub 🚀</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+
+                  {/* Interactive Clone Code Box */}
+                  <div className="bg-slate-900/90 rounded-2xl p-4 border border-white/10 text-left space-y-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Clone Command
+                    </span>
+                    <div className="flex items-center justify-between gap-2 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-white/10 font-mono text-xs text-indigo-300">
+                      <span className="truncate">
+                        git clone {pushResult.cloneUrl || (pushResult.repoUrl ? `${pushResult.repoUrl}.git` : `https://github.com/user/${repoName}.git`)}
+                      </span>
+                      <button
+                        onClick={copyCloneCommand}
+                        type="button"
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white transition-colors shrink-0 flex items-center gap-1 text-[11px]"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400 font-semibold">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Close button */}
+                  <div className="pt-2">
+                    <button
+                      onClick={onClose}
+                      className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                    >
+                      Close Window
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Form Controls View */
+                <form onSubmit={handlePushToGithub} className="space-y-4">
+                  {pushError && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-3 rounded-xl text-xs flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <span>{pushError}</span>
+                    </div>
+                  )}
+
+                  {/* Repository Name Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Repository Name <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={repoName}
+                      onChange={(e) => setRepoName(e.target.value)}
+                      placeholder="my-converted-app"
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Repository Visibility Switcher */}
+                  <div className="flex items-center justify-between bg-slate-900/90 p-3.5 rounded-2xl border border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      <Shield className="w-4 h-4 text-indigo-400" />
+                      <div>
+                        <span className="text-xs font-semibold text-slate-200 block">Repository Visibility</span>
+                        <span className="text-[11px] text-slate-400">Choose public or private visibility</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setIsPrivate(false)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          !isPrivate ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Public
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsPrivate(true)}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          isPrivate ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Private
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* GitHub Personal Access Token (PAT) Input */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-slate-300">
+                        GitHub Personal Access Token (PAT) <span className="text-rose-400">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowToken(!showToken)}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+                      >
+                        {showToken ? (
+                          <>
+                            <EyeOff className="w-3.5 h-3.5" />
+                            Hide
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-3.5 h-3.5" />
+                            Show
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <input
+                      type={showToken ? 'text' : 'password'}
+                      required
+                      value={githubToken}
+                      onChange={(e) => setGithubToken(e.target.value)}
+                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Requires 'repo' scope
+                    </p>
+                  </div>
+
+                  {/* Description Input */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      Description <span className="text-slate-500 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Repository description"
+                      className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Primary Action Buttons */}
+                  <div className="pt-3 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-semibold text-xs border border-slate-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isPushing}
+                      className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 hover:scale-[1.02] active:scale-[0.98] text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
+                    >
+                      {isPushing ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Pushing to GitHub...
+                        </>
+                      ) : (
+                        <>
+                          <Github className="w-4 h-4" />
+                          Create & Push to GitHub
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
