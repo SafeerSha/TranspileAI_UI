@@ -59,12 +59,7 @@ export default function ExtractionModal({ isOpen }: ExtractionModalProps) {
               <span className="text-[11px] sm:text-xs font-mono font-bold text-zinc-200">GitHub Repo</span>
             </div>
 
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-              <span className="w-2 h-2 rounded-full bg-yellow-400 animate-ping delay-100" />
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping delay-200" />
-            </div>
-
+          
             <div className="flex items-center gap-2 text-amber-300">
               <FolderTree className="w-5 h-5" />
               <span className="text-xs font-mono font-bold text-zinc-200">AST Index</span>

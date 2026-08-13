@@ -25,7 +25,9 @@ import {
   KeyRound,
   Menu,
   Sparkles,
-  Loader2
+  Loader2,
+  AlertCircle,
+  KeyIcon
 } from 'lucide-react';
 
 import ProjectService, { detectTechFromTree, DetectedTech } from '../services/projectService';
@@ -34,6 +36,8 @@ import DownloadModal from '../components/DownloadModal';
 import StructureModal from '../components/StructureModal';
 import ExtractionModal from '../components/ExtractionModal';
 import CredentialsModal from '../components/CredentialsModal';
+
+import SafetyModal from '../components/SafetyModal';
 
 export default function Home() {
   const [inputText, setInputText] = useState('');
@@ -53,6 +57,7 @@ export default function Home() {
   const [showStructureModal, setShowStructureModal] = useState(false);
   const [showExtractionModal, setShowExtractionModal] = useState(false);
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [projectData, setProjectData] = useState<{ projectId: string; folders: string[]; taskId: string } | null>(null);
   const [extractedStructure, setExtractedStructure] = useState<any>(null);
   const [detectedTech, setDetectedTech] = useState<DetectedTech | null>(null);
@@ -63,6 +68,21 @@ export default function Home() {
     username: '',
     password: ''
   });
+  const [aiApiKey, setAiApiKey] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const sessionKey = sessionStorage.getItem('ai_api_key');
+      if (sessionKey) return sessionKey;
+      // Migrate & remove legacy localStorage key if present
+      const legacyKey = localStorage.getItem('ai_api_key');
+      if (legacyKey) {
+        sessionStorage.setItem('ai_api_key', legacyKey);
+        localStorage.removeItem('ai_api_key');
+        return legacyKey;
+      }
+    }
+    return '';
+  });
+  const [credentialsModalTab, setCredentialsModalTab] = useState<'git' | 'aiKey'>('git');
   const [pendingOperation, setPendingOperation] = useState<((u?: string, p?: string) => void) | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -140,7 +160,28 @@ export default function Home() {
   const popularSourceFrameworks = ['React', 'Vue.js', 'Express', 'Spring Boot', '.NET / ASP.NET Core', 'Django', 'Laravel'];
   const popularTargetFrameworks = ['Next.js', 'Nuxt.js', 'Spring Boot', '.NET / ASP.NET Core', 'FastAPI', 'NestJS'];
 
+  const isFormDirty =
+    inputText.trim().length > 0 ||
+    fromFramework.trim().length > 0 ||
+    selectedFramework.trim().length > 0 ||
+    mode !== 'conversion' ||
+    generateType !== 'frontend' ||
+    credentials.username.length > 0 ||
+    credentials.password.length > 0 ||
+    extractedStructure !== null ||
+    projectData !== null ||
+    detectedTech !== null;
+
+  const isSourceCategoryFrontend = (fromFramework || detectedTech?.name || '').length > 0 && 
+    (detectedTech?.category === 'frontend' || frontendFrameworks.some(fw => fw.toLowerCase() === (fromFramework || detectedTech?.name || '').toLowerCase()));
+
+  const isTargetCategoryBackend = selectedFramework.length > 0 && 
+    backendFrameworks.some(bw => bw.toLowerCase() === selectedFramework.toLowerCase());
+
+  const isCategoryMismatch = mode === 'conversion' && isSourceCategoryFrontend && isTargetCategoryBackend;
+
   useEffect(() => {
+
     setSelectedFramework('');
     setFromFramework('');
     setSearchFrontend('');
@@ -154,8 +195,8 @@ export default function Home() {
         await projectService.initializeProgressTracking((message, percentage) => {
           setProgress({ message, percentage });
         });
-      } catch (err) {
-        console.error('Failed to initialize progress tracking:', err);
+      } catch {
+        // Silent fallback to polling if SignalR is unavailable
       }
     };
     initProgress();
@@ -168,14 +209,20 @@ export default function Home() {
   }, [progress]);
 
   const handleExtract = async (customUsername?: string, customPassword?: string) => {
+    const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
     if (!inputText.trim()) {
       toast.error('Please enter a GitHub URL first');
+      return;
+    }
+    if (!githubUrlRegex.test(inputText.trim())) {
+      toast.error('Only valid GitHub repository URLs are supported (e.g. https://github.com/username/repo)');
       return;
     }
     setShowExtractionModal(true);
 
     const user = typeof customUsername === 'string' ? customUsername : credentials.username;
     const pass = typeof customPassword === 'string' ? customPassword : credentials.password;
+
 
     try {
       const data = await projectService.extractProjectStructure(inputText.trim(), user, pass);
@@ -251,6 +298,10 @@ export default function Home() {
       toast.error('Please select a Target Framework');
       return;
     }
+    if (isCategoryMismatch) {
+      toast.error(`Category Mismatch: Cannot directly convert UI code (${fromFramework || detectedTech?.name || 'Frontend'}) into backend API (${selectedFramework}). Click 'Switch to Generate Backend Mode' below!`, { duration: 6000 });
+      return;
+    }
 
     const user = typeof customUsername === 'string' ? customUsername : credentials.username;
     const pass = typeof customPassword === 'string' ? customPassword : credentials.password;
@@ -266,6 +317,7 @@ export default function Home() {
         fromFramework: mode === 'conversion' ? fromFramework.toLowerCase() : undefined,
         username: user || undefined,
         password: pass || undefined,
+        aiApiKey: aiApiKey ? aiApiKey.trim() : undefined,
       };
       const data = await projectService.processProject(params);
 
@@ -279,7 +331,12 @@ export default function Home() {
       console.error('API error:', err);
       setShowModal(false);
 
-      if (err.status === 401 || (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('401')))) {
+      if (err.status === 429 || err.isRateLimit || (err.message && (err.message.toLowerCase().includes('rate limit') || err.message.toLowerCase().includes('quota') || err.message.toLowerCase().includes('resource_exhausted')))) {
+        toast.error('⚠️ Gemini free tier rate limit reached! Please wait a moment or enter your own Gemini API Key (BYOK).', { duration: 6000 });
+        setCredentialsModalTab('aiKey');
+        setShowCredentialsModal(true);
+      } else if (err.status === 401 || (err.message && (err.message.toLowerCase().includes('authentication') || err.message.toLowerCase().includes('401')))) {
+        setCredentialsModalTab('git');
         setPendingOperation(() => (u?: string, p?: string) => handleGo(u, p));
         setShowCredentialsModal(true);
       } else {
@@ -338,42 +395,37 @@ export default function Home() {
     toast.success('Git authentication credentials cleared.');
   };
 
+  const handleClearAiApiKey = () => {
+    setAiApiKey('');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('ai_api_key');
+      localStorage.removeItem('ai_api_key');
+    }
+    toast.success('Cleared custom API Key.');
+  };
+
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans subtle-grid">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/90 border-b border-zinc-800/80 px-4 sm:px-6 py-3.5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-600 text-black flex items-center justify-center font-mono font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/25 shrink-0">
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-black/90 border-b border-zinc-800/80 px-4 sm:px-6 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          
+          {/* Brand Logo & Version Status */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-600 text-black flex items-center justify-center font-mono font-extrabold text-xs sm:text-sm shadow-md shadow-amber-500/25">
               <Terminal className="w-4 h-4 text-black" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-lg sm:text-xl font-bold tracking-tight text-white">TranspileAI</span>
-              <span className="code-pill text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-semibold">
-                v1.0 Engine
-              </span>
+              <span className="text-base sm:text-lg font-bold tracking-tight text-white">TranspileAI</span>
+              <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-40" />
+                <span>v1.0 Engine Online</span>
+              </div>
             </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-4 text-xs font-medium text-zinc-300">
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-semibold">
-              <span className="w-2 h-2 rounded-full bg-amber-400" />
-              Engine Online
-            </div>
-            {credentials.password && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span>Git Auth Saved {credentials.username ? `(@${credentials.username})` : ''}</span>
-                <button
-                  onClick={handleClearCredentials}
-                  className="ml-1 text-zinc-400 hover:text-rose-400 cursor-pointer"
-                  title="Clear Git credentials"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+          {/* Desktop Central Navigation Links */}
+          <div className="hidden lg:flex items-center gap-6 text-xs font-medium text-zinc-400">
             <a href="#how-it-works" className="hover:text-amber-400 transition-colors">
               How It Works
             </a>
@@ -381,17 +433,95 @@ export default function Home() {
               Guide & FAQs
             </a>
             <button
-              onClick={handleResetProcess}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 border border-zinc-800 hover:border-amber-500/40 transition-all text-xs font-semibold cursor-pointer"
-              title="Clear form and reset process"
+              onClick={() => setShowSafetyModal(true)}
+              className="hover:text-amber-400 transition-colors flex items-center gap-1.5 text-zinc-300 cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Process</span>
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>Safety & Security</span>
             </button>
+          </div>
+
+          {/* Desktop Right Toolbar & Credentials */}
+          <div className="hidden md:flex items-center gap-2.5 text-xs">
+            {/* Custom Gemini AI Key Pill */}
+            {aiApiKey ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-semibold">
+                <KeyIcon className="w-3 h-3 text-amber-400 shrink-0" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCredentialsModalTab('aiKey');
+                    setShowCredentialsModal(true);
+                  }}
+                  className="hover:underline cursor-pointer truncate max-w-[120px]"
+                  title="Edit custom AI Key"
+                >
+                  AI Key Active
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearAiApiKey}
+                  className="text-zinc-400 hover:text-rose-400 ml-0.5 cursor-pointer"
+                  title="Clear custom AI Key"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setCredentialsModalTab('aiKey');
+                  setShowCredentialsModal(true);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-zinc-400 hover:text-white hover:border-amber-500/40 text-[11px] font-semibold transition-all cursor-pointer"
+                title="Add custom API Key (BYOK)"
+              >
+                <KeyIcon className="w-3 h-3 text-amber-400 shrink-0" />
+                <span>Set Key (BYOK)</span>
+              </button>
+            )}
+
+            {/* Saved Git Auth Pill */}
+            {credentials.password && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-semibold">
+                <ShieldCheck className="w-3 h-3 text-amber-400 shrink-0" />
+                <span className="truncate max-w-[110px]">
+                  {credentials.username ? `@${credentials.username}` : 'Git Saved'}
+                </span>
+                <button
+                  onClick={handleClearCredentials}
+                  className="text-zinc-400 hover:text-rose-400 ml-0.5 cursor-pointer"
+                  title="Clear Git credentials"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            {/* Form Clear Button (When Dirty) */}
+            {isFormDirty && (
+              <button
+                onClick={handleResetProcess}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/60 transition-all text-[11px] font-semibold cursor-pointer animate-fadeIn"
+                title="Clear form and reset process"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Clear Form</span>
+              </button>
+            )}
           </div>
 
           {/* Mobile Menu Toggle Button */}
           <div className="flex items-center gap-2 md:hidden">
+            {isFormDirty && (
+              <button
+                onClick={handleResetProcess}
+                className="px-2.5 py-1 rounded-lg bg-zinc-900 text-amber-400 text-xs font-semibold border border-amber-500/30 cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white transition-colors cursor-pointer"
@@ -407,9 +537,41 @@ export default function Home() {
           <div className="md:hidden border-t border-zinc-800/80 mt-3 pt-3 pb-2 space-y-3 px-1 bg-black/95 backdrop-blur-xl">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-                <span className="w-2 h-2 rounded-full bg-amber-400" />
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 Engine Online
               </div>
+              {aiApiKey ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/50 text-amber-300 text-xs font-semibold">
+                  <KeyIcon className="w-3.5 h-3.5 text-amber-400" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCredentialsModalTab('aiKey');
+                      setShowCredentialsModal(true);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="hover:underline cursor-pointer"
+                  >
+                    Custom AI Key Active
+                  </button>
+                  <button onClick={handleClearAiApiKey} className="text-zinc-400 hover:text-rose-400 ml-1">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCredentialsModalTab('aiKey');
+                    setShowCredentialsModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-700/80 text-amber-400 text-xs font-semibold"
+                >
+                  <KeyIcon className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Set Your Key (BYOK)</span>
+                </button>
+              )}
               {credentials.password && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
@@ -437,14 +599,26 @@ export default function Home() {
               </a>
               <button
                 onClick={() => {
-                  handleResetProcess();
+                  setShowSafetyModal(true);
                   setMobileMenuOpen(false);
                 }}
-                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-900 text-amber-400 text-xs font-semibold border border-zinc-800 active:scale-[0.98] cursor-pointer"
+                className="px-3 py-2.5 rounded-xl bg-zinc-900/80 text-amber-300 hover:bg-amber-500/20 text-xs font-medium border border-zinc-800/80 flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Reset Process</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span>Safety & Security</span>
               </button>
+              {isFormDirty && (
+                <button
+                  onClick={() => {
+                    handleResetProcess();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-900 text-amber-400 text-xs font-semibold border border-amber-500/30 active:scale-[0.98] cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Clear Form</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -503,13 +677,15 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                onClick={handleResetProcess}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-700/80 transition-all text-xs font-medium cursor-pointer active:scale-[0.98]"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Clear Form</span>
-              </button>
+              {isFormDirty && (
+                <button
+                  onClick={handleResetProcess}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/60 transition-all text-xs font-semibold cursor-pointer active:scale-[0.98] animate-fadeIn"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Clear Form</span>
+                </button>
+              )}
               <div className="hidden sm:block text-right">
                 <span className="text-xs text-amber-400 code-pill uppercase font-semibold">4-Step Guided Setup</span>
               </div>
@@ -540,14 +716,14 @@ export default function Home() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="https://github.com/username/repo"
-                  className="w-full pl-11 pr-32 py-3 bg-zinc-900/90 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 text-xs sm:text-sm transition-all"
+                  className={`w-full pl-11 pr-32 py-3 bg-zinc-900/90 border rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 text-xs sm:text-sm transition-all ${
+                    inputText.trim().length > 0 && !/^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i.test(inputText.trim())
+                      ? 'border-rose-500/80 focus:ring-rose-500/40 focus:border-rose-500 text-rose-200'
+                      : inputText.trim().length > 0 && /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i.test(inputText.trim())
+                      ? 'border-amber-500/60 focus:ring-amber-500/50 focus:border-amber-500'
+                      : 'border-zinc-700/80 focus:ring-amber-500/50 focus:border-amber-500'
+                  }`}
                 />
-                {isDetectingTech && (
-                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center gap-1.5 pointer-events-none text-amber-400 text-xs font-medium">
-                    <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
-                    <span className="hidden sm:inline text-amber-300 font-semibold">Detecting tech...</span>
-                  </div>
-                )}
               </div>
               <button
                 type="button"
@@ -555,33 +731,18 @@ export default function Home() {
                 className="w-full sm:w-auto px-4 sm:px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-white font-semibold rounded-xl border border-amber-500/30 hover:border-amber-500/60 shadow-lg shadow-amber-500/10 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm shrink-0 cursor-pointer active:scale-[0.98]"
               >
                 <FolderTree className="w-4 h-4 text-amber-400" />
-                <span>Extract Structure</span>
+                <span>Extract URL</span>
               </button>
             </div>
 
-            {/* Auto-Detected Tech Banner */}
-            {detectedTech && (
-              <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-600/15 border border-amber-500/40 text-xs text-amber-300">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="font-semibold text-amber-200">Current Project Tech:</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-black font-extrabold text-xs shadow">
-                    {detectedTech.name}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFromFramework(detectedTech.name);
-                    setSearchFrom(detectedTech.name);
-                    toast.success(`Set ${detectedTech.name} as Source Tech`);
-                  }}
-                  className="self-start sm:self-auto text-amber-400 hover:text-black hover:bg-amber-400 px-3 py-1 rounded-lg transition-all font-bold text-xs border border-amber-500/40 cursor-pointer"
-                >
-                  Set as Source Tech ➔
-                </button>
+            {/* Real-time GitHub URL Validation Warning */}
+            {inputText.trim().length > 0 && !/^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i.test(inputText.trim()) && (
+              <div className="mt-2 text-xs text-rose-400 flex items-center gap-1.5 font-medium bg-rose-500/10 border border-rose-500/20 px-3.5 py-2 rounded-xl">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>Only valid GitHub repository URLs are allowed (e.g. https://github.com/username/repository)</span>
               </div>
             )}
+
 
             {/* Git Authentication Status Badge */}
             {credentials.password && (
@@ -935,6 +1096,35 @@ export default function Home() {
             )}
           </div>
 
+          {/* Category Mismatch Warning Banner */}
+          {isCategoryMismatch && (
+            <div className="bg-gradient-to-r from-amber-950/80 via-zinc-900 to-amber-950/80 border-2 border-amber-500/60 rounded-2xl p-4 sm:p-5 space-y-3 shadow-xl shadow-amber-500/10">
+              <div className="flex items-center gap-2.5 text-amber-400 font-bold text-xs sm:text-sm">
+                <AlertCircle className="w-5 h-5 shrink-0 text-amber-400 animate-pulse" />
+                <span>Architecture Category Mismatch Warning</span>
+              </div>
+              <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                You are attempting to transpile a <strong className="text-amber-300 font-semibold">{fromFramework || detectedTech?.name || 'Frontend'} UI codebase</strong> directly into a <strong className="text-amber-300 font-semibold">{selectedFramework} Backend Web API</strong> via code conversion. Frontend UI components (JSX, HTML, CSS) cannot be transpiled directly into backend API controllers.
+              </p>
+              <div className="pt-1 flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('generate');
+                    setGenerateType('backend');
+                    setSelectedFramework(selectedFramework);
+                    setSearchBackend(selectedFramework);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Switch to &quot;Generate Backend from Frontend&quot; Mode →</span>
+                </button>
+                <span className="text-[11px] text-zinc-400">or choose a Frontend framework target (e.g., Vue.js, SvelteKit)</span>
+              </div>
+            </div>
+          )}
+
           {/* STEP 4: Submit Button */}
           <div>
             <button
@@ -1080,7 +1270,14 @@ export default function Home() {
             <span className="font-bold text-zinc-300">TranspileAI Engine</span>
             <span>— Codebase & Tech Stack Converter</span>
           </div>
-          <div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowSafetyModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 font-semibold transition-all cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-400" />
+              <span>Safety & Security</span>
+            </button>
             <span>Powered by Next.js & SignalR WebSockets</span>
           </div>
         </div>
@@ -1114,8 +1311,15 @@ export default function Home() {
         onClose={() => setShowExtractionModal(false)}
       />
 
+      <SafetyModal
+        isOpen={showSafetyModal}
+        onClose={() => setShowSafetyModal(false)}
+      />
+
       <CredentialsModal
         isOpen={showCredentialsModal}
+        initialTab={credentialsModalTab}
+        savedAiApiKey={aiApiKey}
         onClose={() => setShowCredentialsModal(false)}
         onSubmit={(username, password) => {
           setCredentials({ username, password });
@@ -1124,6 +1328,20 @@ export default function Home() {
             pendingOperation(username, password);
             setPendingOperation(null);
           }
+        }}
+        onSaveAiApiKey={(key) => {
+          const trimmedKey = key.trim();
+          setAiApiKey(trimmedKey);
+          if (typeof window !== 'undefined') {
+            if (trimmedKey) {
+              sessionStorage.setItem('ai_api_key', trimmedKey);
+              localStorage.removeItem('ai_api_key');
+            } else {
+              sessionStorage.removeItem('ai_api_key');
+              localStorage.removeItem('ai_api_key');
+            }
+          }
+          toast.success(trimmedKey ? '✨ Custom API Key saved in session memory (BYOK active)' : 'Cleared custom API Key');
         }}
       />
 

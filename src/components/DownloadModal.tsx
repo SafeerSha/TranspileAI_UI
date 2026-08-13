@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Github, Check, Copy, ExternalLink, Shield, Sparkles, FolderTree, AlertCircle, RefreshCw, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { Download, Github, Check, Copy, ExternalLink, Shield, Code2, FolderTree, AlertCircle, RefreshCw, Eye, EyeOff, RotateCcw } from 'lucide-react';
 
 interface DownloadModalProps {
   isOpen: boolean;
@@ -134,7 +134,7 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-500 flex items-center justify-center text-black font-extrabold shadow-lg shadow-amber-500/30">
-                <Sparkles className="w-5 h-5 text-black" />
+                <Code2 className="w-5 h-5 text-black" />
               </div>
               <div>
                 <h3 className="text-xl font-bold text-white tracking-tight">Project Ready for Export</h3>

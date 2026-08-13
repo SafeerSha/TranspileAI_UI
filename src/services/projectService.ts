@@ -10,6 +10,7 @@ interface ProcessProjectParams {
   fromFramework?: string;
   username?: string;
   password?: string;
+  aiApiKey?: string;
 }
 
 interface ConvertProjectParams {
@@ -122,50 +123,55 @@ class ProjectService {
   private connectionId: string | null = null;
   private progressCallback: ((message: string, percentage: number) => void) | null = null;
 
-  // Initialize SignalR connection
+  // Initialize SignalR connection silently & lazily
   async initializeProgressTracking(onProgress: (message: string, percentage: number) => void): Promise<string | null> {
     this.progressCallback = onProgress;
 
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      return this.connectionId;
+    }
+
     const hubUrl = `${BACKEND_URL || ''}/progressHub`;
 
-    this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl, {
-        skipNegotiation: false,
-        transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
-      })
-      .withAutomaticReconnect({
-        nextRetryDelayInMilliseconds: (retryContext) => {
-          if (retryContext.previousRetryCount < 5) {
-            return 2000;
-          }
-          return 5000;
-        }
-      })
-      .withHubProtocol(new signalR.JsonHubProtocol())
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    this.connection.on('ReceiveProgress', (message: string, percentage: number) => {
-      if (this.progressCallback) {
-        this.progressCallback(message, percentage);
-      }
-    });
-
     try {
+      this.connection = new signalR.HubConnectionBuilder()
+        .withUrl(hubUrl, {
+          skipNegotiation: false,
+          transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
+        })
+        .withAutomaticReconnect({
+          nextRetryDelayInMilliseconds: (retryContext) => {
+            if (retryContext.previousRetryCount < 5) {
+              return 2000;
+            }
+            return 5000;
+          }
+        })
+        .withHubProtocol(new signalR.JsonHubProtocol())
+        .configureLogging(signalR.LogLevel.None)
+        .build();
+
+      this.connection.on('ReceiveProgress', (message: string, percentage: number) => {
+        if (this.progressCallback) {
+          this.progressCallback(message, percentage);
+        }
+      });
+
       await this.connection.start();
       this.connectionId = this.connection.connectionId;
-      console.log('SignalR connection established successfully:', this.connectionId);
       return this.connectionId;
-    } catch (err) {
-      console.warn('SignalR negotiation skipped or backend server initializing:', err);
+    } catch {
+      // Backend is initializing, sleeping on Render, or unreachable.
+      // Gracefully fall back to HTTP polling without logging uncaught errors.
       this.connectionId = null;
       return null;
     }
   }
 
 
+
   // Process API - Main endpoint for cloning, conversion, generation
-  async processProject({ githubUrl, mode, type, targetFramework, fromFramework, username, password }: ProcessProjectParams): Promise<ProcessProjectResponse> {
+  async processProject({ githubUrl, mode, type, targetFramework, fromFramework, username, password, aiApiKey }: ProcessProjectParams): Promise<ProcessProjectResponse> {
     const response = await fetch(`${BACKEND_URL}/api/project/process`, {
       method: 'POST',
       headers: {
@@ -179,12 +185,24 @@ class ProjectService {
         fromFramework,
         username: username || null,
         password: password || null,
+        aiApiKey: aiApiKey || null,
         connectionId: this.connectionId
       })
     });
 
     if (!response.ok) {
       let errorMessage = `Process failed: ${response.statusText}`;
+      if (response.status === 429) {
+        let rateLimitMsg = 'Gemini free tier rate limit reached. Please wait a moment or use your own Gemini API key (BYOK).';
+        try {
+          const errorData = await response.json();
+          rateLimitMsg = errorData.error || rateLimitMsg;
+        } catch {}
+        const rateLimitError = new Error(rateLimitMsg);
+        (rateLimitError as any).status = 429;
+        (rateLimitError as any).isRateLimit = true;
+        throw rateLimitError;
+      }
       if (response.status === 401) {
         const authError = new Error('Authentication required for this repository');
         (authError as any).status = 401;
@@ -194,7 +212,14 @@ class ProjectService {
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch {
+          if (errorMessage.toLowerCase().includes('rate limit') || errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('resource_exhausted')) {
+            const rateLimitError = new Error('Gemini free tier rate limit reached. Please wait a moment or use your own Gemini API key (BYOK).');
+            (rateLimitError as any).status = 429;
+            (rateLimitError as any).isRateLimit = true;
+            throw rateLimitError;
+          }
+        } catch (e: any) {
+          if (e.isRateLimit) throw e;
           // If parsing fails, use default message
         }
       }
