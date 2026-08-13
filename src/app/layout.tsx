@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TranspileAI — AI Codebase & Tech Stack Converter",
   description: "Transform any software repository from one tech stack to another, or auto-generate frontend and backend code with AI.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
