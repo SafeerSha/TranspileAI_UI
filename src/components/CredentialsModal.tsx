@@ -4,30 +4,40 @@ import { ShieldAlert, KeyRound, User, Eye, EyeOff, ExternalLink, HelpCircle, Spa
 interface CredentialsModalProps {
   isOpen: boolean;
   initialTab?: 'git' | 'aiKey';
+  savedUsername?: string;
+  savedPassword?: string;
   savedAiApiKey?: string;
   onClose: () => void;
   onSubmit: (username: string, password: string) => void;
   onSaveAiApiKey?: (aiApiKey: string) => void;
+  onClearGitCredentials?: () => void;
 }
 
 export default function CredentialsModal({
   isOpen,
   initialTab = 'git',
+  savedUsername = '',
+  savedPassword = '',
   savedAiApiKey = '',
   onClose,
   onSubmit,
-  onSaveAiApiKey
+  onSaveAiApiKey,
+  onClearGitCredentials
 }: CredentialsModalProps) {
   const [activeTab, setActiveTab] = useState<'git' | 'aiKey'>(initialTab);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState(savedUsername);
+  const [password, setPassword] = useState(savedPassword);
   const [showPassword, setShowPassword] = useState(false);
   const [aiApiKeyInput, setAiApiKeyInput] = useState(savedAiApiKey);
   const [showAiApiKey, setShowAiApiKey] = useState(false);
 
   useEffect(() => {
     setActiveTab(initialTab);
-  }, [initialTab, isOpen]);
+    if (isOpen) {
+      setUsername(savedUsername);
+      setPassword(savedPassword);
+    }
+  }, [initialTab, isOpen, savedUsername, savedPassword]);
 
   useEffect(() => {
     setAiApiKeyInput(savedAiApiKey);
@@ -164,6 +174,19 @@ export default function CredentialsModal({
               </div>
 
               <div className="flex flex-col sm:flex-row justify-end gap-2.5 sm:gap-3 pt-2">
+                {(savedUsername || savedPassword) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUsername('');
+                      setPassword('');
+                      if (onClearGitCredentials) onClearGitCredentials();
+                    }}
+                    className="py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-rose-950/40 text-rose-400 font-semibold text-xs border border-zinc-800 transition-colors cursor-pointer"
+                  >
+                    Clear Credentials
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}

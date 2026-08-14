@@ -64,9 +64,13 @@ export default function Home() {
   const [isDetectingTech, setIsDetectingTech] = useState(false);
   const [lastAnalyzedUrl, setLastAnalyzedUrl] = useState('');
   const [projectService] = useState(() => new ProjectService());
-  const [credentials, setCredentials] = useState({
-    username: '',
-    password: ''
+  const [credentials, setCredentials] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const username = sessionStorage.getItem('git_username') || '';
+      const password = sessionStorage.getItem('git_password') || '';
+      return { username, password };
+    }
+    return { username: '', password: '' };
   });
   const [aiApiKey, setAiApiKey] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -86,6 +90,40 @@ export default function Home() {
   const [pendingOperation, setPendingOperation] = useState<((u?: string, p?: string) => void) | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [engineStatus, setEngineStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const runHealthCheck = async () => {
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        if (isMounted) setEngineStatus('offline');
+        return;
+      }
+
+      const isHealthy = await projectService.checkHealth();
+      if (isMounted) {
+        setEngineStatus(isHealthy ? 'online' : 'offline');
+      }
+    };
+
+    runHealthCheck();
+
+    const interval = setInterval(runHealthCheck, 20000);
+
+    const handleOnline = () => runHealthCheck();
+    const handleOffline = () => setEngineStatus('offline');
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [projectService]);
 
   const autoDetectRepoTech = async (url: string, customUsername?: string, customPassword?: string) => {
     const githubUrlRegex = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i;
@@ -392,6 +430,11 @@ export default function Home() {
 
   const handleClearCredentials = () => {
     setCredentials({ username: '', password: '' });
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('git_username');
+      sessionStorage.removeItem('git_password');
+      sessionStorage.removeItem('github_pat');
+    }
     toast.success('Git authentication credentials cleared.');
   };
 
@@ -417,10 +460,22 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-base sm:text-lg font-bold tracking-tight text-white">TranspileAI</span>
-              <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-40" />
-                <span>v1.0 Engine Online</span>
-              </div>
+              {engineStatus === 'online' ? (
+                <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-semibold" title="TranspileAI Engine Backend is active and connected">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>v1.0 Engine Online</span>
+                </div>
+              ) : engineStatus === 'offline' ? (
+                <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-semibold" title="TranspileAI Engine Backend or network is currently unreachable">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                  <span>Engine Offline</span>
+                </div>
+              ) : (
+                <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-zinc-800/80 border border-zinc-700/60 text-zinc-400 text-[10px] font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400/50 animate-ping" />
+                  <span>Connecting...</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1166,7 +1221,7 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-bold text-white mb-2">2. Transpilation Engine</h3>
               <p className="text-zinc-400 text-xs sm:text-sm leading-relaxed">
-                The backend engine restructures syntax, maps dependencies, and streams real-time progress via SignalR WebSockets.
+                The conversion engine restructures syntax, maps dependencies, and streams real-time progress updates.
               </p>
             </div>
 
@@ -1227,7 +1282,7 @@ export default function Home() {
               },
               {
                 q: "How does real-time progress tracking work?",
-                a: "The application establishes a SignalR WebSocket connection to stream live updates and percentage progress from the backend transformation hub."
+                a: "The application streams live updates and percentage progress in real-time as your codebase is transformed."
               },
               {
                 q: "What format will I receive the output in?",
@@ -1267,8 +1322,9 @@ export default function Home() {
       <footer className="py-8 px-4 bg-black border-t border-zinc-800 text-center text-xs text-zinc-500">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-zinc-300">TranspileAI Engine</span>
-            <span>— Codebase & Tech Stack Converter</span>
+            <span className="font-extrabold text-amber-400">TranspileAI</span>
+            <span className="text-zinc-500">•</span>
+            <span className="text-zinc-400 font-medium">AI-Powered Codebase & Tech Stack Converter</span>
           </div>
           <div className="flex items-center gap-4">
             <button
@@ -1278,7 +1334,7 @@ export default function Home() {
               <ShieldCheck className="w-4 h-4 text-amber-400" />
               <span>Safety & Security</span>
             </button>
-            <span>Powered by Next.js & SignalR WebSockets</span>
+            <span>Powered by <span className="text-amber-400 font-bold">TranspileAI Core</span></span>
           </div>
         </div>
       </footer>
@@ -1319,16 +1375,27 @@ export default function Home() {
       <CredentialsModal
         isOpen={showCredentialsModal}
         initialTab={credentialsModalTab}
+        savedUsername={credentials.username}
+        savedPassword={credentials.password}
         savedAiApiKey={aiApiKey}
         onClose={() => setShowCredentialsModal(false)}
         onSubmit={(username, password) => {
           setCredentials({ username, password });
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('git_username', username);
+            sessionStorage.setItem('git_password', password);
+            if (!sessionStorage.getItem('github_pat')) {
+              sessionStorage.setItem('github_pat', password);
+            }
+          }
           setShowCredentialsModal(false);
           if (pendingOperation) {
             pendingOperation(username, password);
             setPendingOperation(null);
           }
+          toast.success('✨ Git credentials saved for session');
         }}
+        onClearGitCredentials={handleClearCredentials}
         onSaveAiApiKey={(key) => {
           const trimmedKey = key.trim();
           setAiApiKey(trimmedKey);

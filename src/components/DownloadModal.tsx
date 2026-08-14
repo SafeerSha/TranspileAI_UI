@@ -71,12 +71,32 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
   const [repoName, setRepoName] = useState('my-converted-app');
   const [isPrivate, setIsPrivate] = useState(true);
   const [description, setDescription] = useState('Generated with TranspileAI');
-  const [githubToken, setGithubToken] = useState('');
+  const [githubToken, setGithubToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('github_pat') || sessionStorage.getItem('git_password') || '';
+    }
+    return '';
+  });
   const [showToken, setShowToken] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [pushResult, setPushResult] = useState<{ repoUrl: string; cloneUrl: string } | null>(null);
   const [pushError, setPushError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const updateGithubToken = (token: string) => {
+    setGithubToken(token);
+    if (typeof window !== 'undefined') {
+      if (token.trim()) {
+        sessionStorage.setItem('github_pat', token.trim());
+      } else {
+        sessionStorage.removeItem('github_pat');
+      }
+    }
+  };
+
+  const handleClearToken = () => {
+    updateGithubToken('');
+  };
 
   if (!isOpen || !projectData) return null;
 
@@ -91,7 +111,8 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
 
   const handlePushToGithub = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!githubToken.trim()) {
+    const tokenToUse = githubToken.trim();
+    if (!tokenToUse) {
       setPushError('GitHub Personal Access Token (PAT) is required.');
       return;
     }
@@ -104,12 +125,15 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
     setPushError(null);
     setPushResult(null);
 
+    // Save token to sessionStorage on submit
+    updateGithubToken(tokenToUse);
+
     try {
       const result = await onPushToGithub({
         repoName: repoName.trim(),
         isPrivate,
         description: description.trim(),
-        githubToken: githubToken.trim()
+        githubToken: tokenToUse
       });
       setPushResult(result);
     } catch (err: any) {
@@ -169,7 +193,8 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5'
               }`}
             >
-              <span>🐙 Push Direct to GitHub</span>
+              <Github className="w-4 h-4" />
+              <span> Push Direct to GitHub</span>
             </button>
           </div>
         </div>
@@ -261,7 +286,7 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                       rel="noopener noreferrer"
                       className="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:from-amber-400 hover:to-yellow-300 active:scale-[0.98] text-black font-extrabold text-sm shadow-xl shadow-amber-500/25 transition-all"
                     >
-                      <span>Open Repository on GitHub 🚀</span>
+                      <span>Open Repository on GitHub</span>
                       <ExternalLink className="w-4 h-4 text-black" />
                     </a>
                   </div>
@@ -376,34 +401,45 @@ export default function DownloadModal({ isOpen, projectData, onDownload, onPushT
                       <label className="text-xs font-semibold text-zinc-300">
                         GitHub Personal Access Token (PAT) <span className="text-rose-400">*</span>
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowToken(!showToken)}
-                        className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 cursor-pointer"
-                      >
-                        {showToken ? (
-                          <>
-                            <EyeOff className="w-3.5 h-3.5" />
-                            Hide
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-3.5 h-3.5" />
-                            Show
-                          </>
+                      <div className="flex items-center gap-3">
+                        {githubToken && (
+                          <button
+                            type="button"
+                            onClick={handleClearToken}
+                            className="text-[11px] text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
+                          >
+                            Clear Token
+                          </button>
                         )}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowToken(!showToken)}
+                          className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          {showToken ? (
+                            <>
+                              <EyeOff className="w-3.5 h-3.5" />
+                              Hide
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-3.5 h-3.5" />
+                              Show
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <input
                       type={showToken ? 'text' : 'password'}
                       required
                       value={githubToken}
-                      onChange={(e) => setGithubToken(e.target.value)}
+                      onChange={(e) => updateGithubToken(e.target.value)}
                       placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                       className="w-full bg-zinc-900 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono placeholder-zinc-600 focus:outline-none focus:border-amber-500 transition-colors"
                     />
                     <p className="text-[11px] text-zinc-400 mt-1">
-                      Requires 'repo' scope
+                      Saved during active session. Requires 'repo' scope.
                     </p>
                   </div>
 

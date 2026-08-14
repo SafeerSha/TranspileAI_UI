@@ -170,6 +170,22 @@ class ProjectService {
 
 
 
+  // Check backend engine health
+  async checkHealth(): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const response = await fetch(`${BACKEND_URL}/api/project/health`, {
+        method: 'GET',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
   // Process API - Main endpoint for cloning, conversion, generation
   async processProject({ githubUrl, mode, type, targetFramework, fromFramework, username, password, aiApiKey }: ProcessProjectParams): Promise<ProcessProjectResponse> {
     const response = await fetch(`${BACKEND_URL}/api/project/process`, {
