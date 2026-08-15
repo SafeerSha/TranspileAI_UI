@@ -295,15 +295,15 @@ class ProjectService {
             if (progress.percentage >= 100 || progress.projectId) {
               resolve(progress);
             } else {
-              setTimeout(poll, 500); // Poll every 500ms
+              setTimeout(poll, 3000); // Poll every 3 seconds
             }
           } else if (response.status === 404) {
-            setTimeout(poll, 800);
+            setTimeout(poll, 3000);
           } else {
-            setTimeout(poll, 1000);
+            setTimeout(poll, 3000);
           }
         } catch (error) {
-          setTimeout(poll, 1000);
+          setTimeout(poll, 3000);
         }
       };
 
