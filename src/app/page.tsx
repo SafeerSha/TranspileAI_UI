@@ -1352,6 +1352,7 @@ export default function Home() {
         projectData={projectData}
         onDownload={handleDownload}
         onPushToGithub={handlePushToGithub}
+        onFetchProjectFiles={(id) => projectService.getProjectFiles(id)}
         onClose={() => setShowDownloadModal(false)}
         onResetProcess={handleResetProcess}
       />
