@@ -357,14 +357,20 @@ export default function Home() {
         password: pass || undefined,
         aiApiKey: aiApiKey ? aiApiKey.trim() : undefined,
       };
-      const data = await projectService.processProject(params);
+      const startRes = await projectService.processProject(params);
 
-      await projectService.pollProgress(data.taskId, (progressData) => {
+      const progressResult = await projectService.pollProgress(startRes.taskId, (progressData) => {
         setProgress({ message: progressData.message, percentage: progressData.percentage });
       });
 
+      if (progressResult && progressResult.projectId) {
+        setProjectData({
+          projectId: progressResult.projectId,
+          folders: progressResult.folders || [],
+          taskId: startRes.taskId
+        });
+      }
       setShowDownloadModal(true);
-      setProjectData(data);
     } catch (err: any) {
       console.error('API error:', err);
       setShowModal(false);
