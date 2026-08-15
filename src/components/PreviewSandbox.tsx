@@ -60,16 +60,45 @@ export default function PreviewSandbox({ files, isLoading, error }: PreviewSandb
     formattedFiles['/App.tsx'] = `import React from 'react';\n\nexport default function App() {\n  return (\n    <div style={{ padding: 30, fontFamily: 'sans-serif', background: '#09090b', color: '#f4f4f5', minHeight: '100vh' }}>\n      <h1 style={{ color: '#fbbf24' }}>TranspileAI Live Preview</h1>\n      <p>No source files were returned for live execution.</p>\n    </div>\n  );\n}`;
   }
 
-  // Determine template based on file extensions
-  let template: 'react-ts' | 'react' | 'vue' | 'svelte' | 'vanilla' = 'react-ts';
-  const fileKeys = Object.keys(formattedFiles).map(k => k.toLowerCase());
+  // Determine template based on package.json or file extensions
+  let template: any = 'react-ts';
+  const customSetup: any = {};
   
-  if (fileKeys.some(k => k.endsWith('.vue'))) {
-    template = 'vue';
-  } else if (fileKeys.some(k => k.endsWith('.svelte'))) {
-    template = 'svelte';
-  } else if (!fileKeys.some(k => k.endsWith('.tsx') || k.endsWith('.ts'))) {
-    template = 'react';
+  if (formattedFiles['/package.json']) {
+    try {
+      const pkg = JSON.parse(formattedFiles['/package.json']);
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      const isTs = !!deps['typescript'];
+      
+      if (deps['next']) template = 'nextjs';
+      else if (deps['nuxt']) template = 'node';
+      else if (deps['@angular/core']) template = 'angular';
+      else if (deps['vite'] && deps['react']) template = isTs ? 'vite-react-ts' : 'vite-react';
+      else if (deps['vite'] && deps['vue']) template = isTs ? 'vite-vue-ts' : 'vite-vue';
+      else if (deps['vite'] && deps['svelte']) template = isTs ? 'vite-svelte-ts' : 'vite-svelte';
+      else if (deps['vite']) template = isTs ? 'vanilla-ts' : 'vanilla';
+      else if (deps['vue']) template = isTs ? 'vue-ts' : 'vue';
+      else if (deps['svelte']) template = 'svelte';
+      else if (deps['react']) template = isTs ? 'react-ts' : 'react';
+      else template = 'node';
+      
+      if (pkg.main) {
+        const mainPath = '/' + pkg.main.replace(/^\.\//, '');
+        if (formattedFiles[mainPath]) {
+          customSetup.entry = mainPath;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse package.json for template detection');
+    }
+  } else {
+    const fileKeys = Object.keys(formattedFiles).map(k => k.toLowerCase());
+    if (fileKeys.some(k => k.includes('next.config'))) template = 'nextjs';
+    else if (fileKeys.some(k => k.includes('vite.config') && k.endsWith('.vue'))) template = 'vite-vue';
+    else if (fileKeys.some(k => k.includes('vite.config'))) template = 'vite-react-ts';
+    else if (fileKeys.some(k => k.endsWith('.vue'))) template = 'vue';
+    else if (fileKeys.some(k => k.endsWith('.svelte'))) template = 'svelte';
+    else if (!fileKeys.some(k => k.endsWith('.tsx') || k.endsWith('.ts'))) template = 'react';
   }
 
   const getViewportWidthClass = () => {
@@ -172,6 +201,7 @@ export default function PreviewSandbox({ files, isLoading, error }: PreviewSandb
         <SandpackProvider
           template={template}
           files={formattedFiles}
+          customSetup={customSetup}
           theme="dark"
           options={{
             recompileMode: 'delayed',
