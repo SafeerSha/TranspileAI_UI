@@ -240,6 +240,36 @@ export default function Home() {
     initProgress();
   }, [projectService]);
 
+  // Check for active task ID on mount to resume polling
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const activeTaskId = sessionStorage.getItem('activeTaskId');
+      if (activeTaskId) {
+        setShowModal(true);
+        setProgress({ message: 'Resuming task tracking...', percentage: 0 });
+        
+        projectService.pollProgress(activeTaskId, (progressData) => {
+          setProgress({ message: progressData.message, percentage: progressData.percentage });
+        }).then((progressResult) => {
+          if (progressResult && progressResult.projectId) {
+            setProjectData({
+              projectId: progressResult.projectId,
+              folders: progressResult.folders || [],
+              taskId: activeTaskId
+            });
+          }
+          setShowDownloadModal(true);
+          sessionStorage.removeItem('activeTaskId');
+        }).catch((err: any) => {
+          console.error('Resume polling error:', err);
+          setShowModal(false);
+          sessionStorage.removeItem('activeTaskId');
+          toast.error(err.message || 'Failed to resume task tracking. The task may have failed.');
+        });
+      }
+    }
+  }, [projectService]);
+
   useEffect(() => {
     if (progress && progress.percentage >= 100) {
       setShowModal(false);
@@ -359,9 +389,17 @@ export default function Home() {
       };
       const startRes = await projectService.processProject(params);
 
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('activeTaskId', startRes.taskId);
+      }
+
       const progressResult = await projectService.pollProgress(startRes.taskId, (progressData) => {
         setProgress({ message: progressData.message, percentage: progressData.percentage });
       });
+
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('activeTaskId');
+      }
 
       if (progressResult && progressResult.projectId) {
         setProjectData({
@@ -372,6 +410,9 @@ export default function Home() {
       }
       setShowDownloadModal(true);
     } catch (err: any) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('activeTaskId');
+      }
       console.error('API error:', err);
       setShowModal(false);
 
@@ -431,6 +472,9 @@ export default function Home() {
     setIsDetectingTech(false);
     setCredentials({ username: '', password: '' });
     setPendingOperation(null);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('activeTaskId');
+    }
     toast.success('Process reset successfully. Ready for a new task!');
   };
 
@@ -468,7 +512,7 @@ export default function Home() {
               <span className="text-base sm:text-lg font-bold tracking-tight text-white">TranspileAI</span>
               {engineStatus === 'online' ? (
                 <div className="hidden xl:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-semibold" title="TranspileAI Engine Backend is active and connected">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                   <span>v1.0 Engine Online</span>
                 </div>
               ) : engineStatus === 'offline' ? (
@@ -598,7 +642,7 @@ export default function Home() {
           <div className="md:hidden border-t border-zinc-800/80 mt-3 pt-3 pb-2 space-y-3 px-1 bg-black/95 backdrop-blur-xl">
             <div className="flex flex-wrap items-center justify-between gap-2 px-1">
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-amber-400" />
                 Engine Online
               </div>
               {aiApiKey ? (
@@ -725,39 +769,53 @@ export default function Home() {
       </section>
 
       {/* Main Guided Form Section */}
-      <section className="px-3 sm:px-4 pb-16 sm:pb-20 max-w-3xl mx-auto">
-        <div className="glass-panel rounded-2xl sm:rounded-3xl p-4 sm:p-8 md:p-10 border border-zinc-800/80 shadow-2xl relative">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-5 mb-6 sm:mb-8 gap-3">
-            <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-                <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
-                Configure Transformation
-              </h2>
-              <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-                Follow the 4 simple guided steps below to convert or generate code.
-              </p>
-            </div>
-            <div className="flex items-center gap-2.5 shrink-0">
-              {isFormDirty && (
-                <button
-                  onClick={handleResetProcess}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 border border-amber-500/30 hover:border-amber-500/60 transition-all text-xs font-semibold cursor-pointer active:scale-[0.98] animate-fadeIn"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Clear Form</span>
-                </button>
-              )}
-              <div className="hidden sm:block text-right">
-                <span className="text-xs text-amber-400 code-pill uppercase font-semibold">4-Step Guided Setup</span>
+      <section className="px-3 sm:px-4 pb-16 sm:pb-20 max-w-3xl mx-auto relative">
+        <div className="relative group">
+          {/* Ambient Glowing Halo Backdrop */}
+          <div className="absolute -inset-1.5 rounded-[32px] bg-gradient-to-r from-amber-500/35 via-yellow-400/40 to-amber-600/35 blur-2xl opacity-80 group-hover:opacity-100 transition-all duration-700 animate-pulse pointer-events-none" />
+
+          {/* Main Processing Card Frame */}
+          <div className="relative rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-10 bg-zinc-950/95 backdrop-blur-2xl border-2 border-amber-500/40 shadow-[0_0_60px_rgba(245,158,11,0.22)] overflow-hidden">
+            
+            {/* Top Right Decorative Shimmer */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-bl from-amber-500/10 via-yellow-500/5 to-transparent rounded-bl-full pointer-events-none" />
+
+            {/* Header Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-800/80 pb-5 mb-6 sm:mb-8 gap-3 relative">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-[11px] font-black uppercase tracking-wider mb-2.5 shadow-sm shadow-amber-500/20">
+                  <Cpu className="w-3.5 h-3.5 text-amber-400" />
+                  <span>TranspileAI Engine</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
+                  Configure Transformation
+                </h2>
+                <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+                  Follow the 4 simple guided steps below to convert or generate code.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                {isFormDirty && (
+                  <button
+                    onClick={handleResetProcess}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 border border-amber-500/40 hover:border-amber-500/70 transition-all text-xs font-semibold cursor-pointer active:scale-[0.98] animate-fadeIn shadow-md shadow-amber-500/10"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Clear Form</span>
+                  </button>
+                )}
+                <div className="hidden sm:block text-right">
+                  <span className="text-[11px] text-amber-400 font-extrabold uppercase tracking-wider px-3 py-1 rounded-lg bg-black border border-amber-500/30 shadow-sm">4-Step Guided Setup</span>
+                </div>
               </div>
             </div>
-          </div>
 
           {/* STEP 1: GitHub URL & Extraction */}
-          <div className="mb-6 sm:mb-8">
+          <div className="mb-6 sm:mb-8 relative">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-1">
               <label className="text-sm sm:text-base font-semibold text-zinc-200 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500 text-black text-xs flex items-center justify-center font-extrabold shrink-0">1</span>
+                <span className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-400 text-black text-xs font-black inline-flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">1</span>
                 GitHub Repository URL
                 {mode === 'conversion' && <span className="text-rose-400 text-xs">*Required</span>}
               </label>
@@ -854,9 +912,9 @@ export default function Home() {
           </div>
 
           {/* STEP 2: Choose Mode */}
-          <div className="mb-6 sm:mb-8">
-            <label className="block text-sm sm:text-base font-semibold text-zinc-200 mb-3">
-              <span className="w-6 h-6 rounded-full bg-amber-500 text-black text-xs inline-flex items-center justify-center font-extrabold mr-2">2</span>
+          <div className="mb-6 sm:mb-8 relative">
+            <label className="block text-sm sm:text-base font-semibold text-zinc-200 mb-3 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-400 text-black text-xs font-black inline-flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">2</span>
               Select Transformation Mode
             </label>
 
@@ -865,7 +923,7 @@ export default function Home() {
                 onClick={() => setMode('conversion')}
                 className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all active:scale-[0.99] ${
                   mode === 'conversion'
-                    ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30'
+                    ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10'
                     : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
@@ -887,7 +945,7 @@ export default function Home() {
                 onClick={() => setMode('generate')}
                 className={`cursor-pointer p-4 sm:p-5 rounded-2xl border transition-all active:scale-[0.99] ${
                   mode === 'generate'
-                    ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30'
+                    ? 'bg-amber-950/40 border-amber-500/80 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10'
                     : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700'
                 }`}
               >
@@ -908,9 +966,9 @@ export default function Home() {
           </div>
 
           {/* STEP 3: Framework Selection */}
-          <div className="mb-6 sm:mb-8">
-            <label className="block text-sm sm:text-base font-semibold text-zinc-200 mb-3">
-              <span className="w-6 h-6 rounded-full bg-amber-500 text-black text-xs inline-flex items-center justify-center font-extrabold mr-2">3</span>
+          <div className="mb-6 sm:mb-8 relative">
+            <label className="block text-sm sm:text-base font-semibold text-zinc-200 mb-3 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-yellow-400 text-black text-xs font-black inline-flex items-center justify-center shadow-lg shadow-amber-500/30 shrink-0">3</span>
               Select Tech Frameworks
             </label>
 
@@ -938,7 +996,7 @@ export default function Home() {
                       className="w-full px-3.5 py-2.5 sm:py-3 bg-zinc-900 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-xs sm:text-sm"
                     />
                     {showFromDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-50 shadow-2xl custom-scrollbar touch-scroll">
                         {allFrameworks
                           .filter((fw) => fw.toLowerCase().includes(searchFrom.toLowerCase()))
                           .map((fw) => (
@@ -1011,7 +1069,7 @@ export default function Home() {
                       className="w-full px-3.5 py-2.5 sm:py-3 bg-zinc-900 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-xs sm:text-sm"
                     />
                     {showFrontendDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-50 shadow-2xl custom-scrollbar touch-scroll">
                         {allFrameworks
                           .filter((fw) => fw.toLowerCase().includes(searchFrontend.toLowerCase()))
                           .map((fw) => (
@@ -1114,7 +1172,7 @@ export default function Home() {
                       className="w-full px-3.5 py-2.5 sm:py-3 bg-zinc-900 border border-zinc-700/80 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-xs sm:text-sm"
                     />
                     {generateType === 'frontend' && showFrontendDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-50 shadow-2xl custom-scrollbar touch-scroll">
                         {frontendFrameworks
                           .filter((fw) => fw.toLowerCase().includes(searchFrontend.toLowerCase()))
                           .map((fw) => (
@@ -1133,7 +1191,7 @@ export default function Home() {
                       </div>
                     )}
                     {generateType === 'backend' && showBackendDropdown && (
-                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-40 shadow-2xl custom-scrollbar touch-scroll">
+                      <div className="absolute top-full left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl mt-1 max-h-56 overflow-y-auto z-50 shadow-2xl custom-scrollbar touch-scroll">
                         {backendFrameworks
                           .filter((bw) => bw.toLowerCase().includes(searchBackend.toLowerCase()))
                           .map((bw) => (
@@ -1187,18 +1245,20 @@ export default function Home() {
           )}
 
           {/* STEP 4: Submit Button */}
-          <div>
+          <div className="pt-2 relative">
             <button
               type="button"
               onClick={() => handleGo()}
-              className="w-full py-3.5 sm:py-4 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:from-amber-400 hover:to-yellow-300 text-black font-extrabold text-sm sm:text-lg rounded-2xl shadow-xl shadow-amber-500/25 hover:shadow-amber-500/40 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2.5 sm:gap-3 cursor-pointer"
+              className="w-full py-3 sm:py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-sm sm:text-base rounded-xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer group/btn"
             >
+              <Sparkles className="w-4 h-4 text-black fill-black" />
               <span>Execute Code Transformation</span>
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-black font-extrabold" />
+              <ArrowRight className="w-4 h-4 text-black stroke-[3] group-hover/btn:translate-x-1 transition-transform duration-200" />
             </button>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* How It Works Section */}
       <section id="how-it-works" className="py-16 px-4 border-t border-zinc-900 bg-black/90">
