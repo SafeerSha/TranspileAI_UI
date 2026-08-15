@@ -51,9 +51,12 @@ interface ProcessProjectResponse {
   taskId: string;
 }
 
-interface ProgressData {
+export interface ProgressData {
   percentage: number;
   message: string;
+  projectId?: string;
+  folders?: string[];
+  error?: string;
 }
 
 export interface DetectedTech {
@@ -123,7 +126,9 @@ class ProjectService {
   private connectionId: string | null = null;
   private progressCallback: ((message: string, percentage: number) => void) | null = null;
 
-  // Initialize SignalR connection silently & lazily
+  constructor() {}
+
+  // Initialize SignalR connection for real-time progress
   async initializeProgressTracking(onProgress: (message: string, percentage: number) => void): Promise<string | null> {
     this.progressCallback = onProgress;
 
@@ -131,17 +136,18 @@ class ProjectService {
       return this.connectionId;
     }
 
-    const hubUrl = `${BACKEND_URL || ''}/progressHub`;
-
     try {
       this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(hubUrl, {
+        .withUrl(`${BACKEND_URL}/progressHub`, {
           skipNegotiation: false,
           transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
         })
         .withAutomaticReconnect({
-          nextRetryDelayInMilliseconds: (retryContext) => {
-            if (retryContext.previousRetryCount < 5) {
+          nextRetryDelayInMilliseconds: retryContext => {
+            if (retryContext.previousRetryCount === 0) {
+              return 0;
+            }
+            if (retryContext.previousRetryCount < 3) {
               return 2000;
             }
             return 5000;
@@ -161,14 +167,10 @@ class ProjectService {
       this.connectionId = this.connection.connectionId;
       return this.connectionId;
     } catch {
-      // Backend is initializing, sleeping on Render, or unreachable.
-      // Gracefully fall back to HTTP polling without logging uncaught errors.
       this.connectionId = null;
       return null;
     }
   }
-
-
 
   // Check backend engine health
   async checkHealth(): Promise<boolean> {
@@ -236,7 +238,6 @@ class ProjectService {
           }
         } catch (e: any) {
           if (e.isRateLimit) throw e;
-          // If parsing fails, use default message
         }
       }
       const error = new Error(errorMessage);
@@ -269,33 +270,40 @@ class ProjectService {
 
   // Poll for progress updates
   async pollProgress(taskId: string, onProgress?: (progress: ProgressData) => void): Promise<ProgressData | null> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const poll = async () => {
         try {
           const response = await fetch(`${BACKEND_URL}/api/project/progress/${taskId}`);
 
           if (response.ok) {
             const progress: ProgressData = await response.json();
-            console.log(`Progress: ${progress.percentage}% - ${progress.message}`);
 
             if (onProgress) {
               onProgress(progress);
             }
 
-            if (progress.percentage >= 100) {
+            if (progress.error) {
+              const err = new Error(progress.error);
+              if (progress.error.includes('rate limit') || progress.error.includes('Gemini')) {
+                (err as any).isRateLimit = true;
+                (err as any).status = 429;
+              }
+              reject(err);
+              return;
+            }
+
+            if (progress.percentage >= 100 || progress.projectId) {
               resolve(progress);
             } else {
-              setTimeout(poll, 1000); // Poll every second
+              setTimeout(poll, 500); // Poll every 500ms
             }
           } else if (response.status === 404) {
-            console.log('Progress not found, operation might be complete');
-            resolve(null);
+            setTimeout(poll, 800);
           } else {
-            throw new Error('Failed to get progress');
+            setTimeout(poll, 1000);
           }
         } catch (error) {
-          console.error('Error polling progress:', error);
-          setTimeout(poll, 2000); // Retry after 2 seconds on error
+          setTimeout(poll, 1000);
         }
       };
 
