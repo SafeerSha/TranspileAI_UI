@@ -425,6 +425,18 @@ class ProjectService {
 
     return await response.json();
   }
+
+  // Get project files dictionary for Sandpack Live Sandbox
+  async getProjectFiles(id: string): Promise<Record<string, string>> {
+    const response = await fetch(`${BACKEND_URL}/api/project/files/${id}`);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch project files: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.files || {};
+  }
 }
 
 export default ProjectService;
